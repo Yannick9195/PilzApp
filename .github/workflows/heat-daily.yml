@@ -1,0 +1,56 @@
+name: Heatmap Wetterdaten (täglich)
+
+on:
+  schedule:
+    - cron: '23 9 * * *'    # 09:23 UTC – der DWD aktualisiert seine Raster gegen 08:20–08:55 UTC
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths: ['tools/heat_daily.py', 'tools/heat_grid.py', '.github/workflows/heat-daily.yml']
+
+permissions:
+  contents: write
+
+concurrency:
+  group: heat-daily
+  cancel-in-progress: true
+
+jobs:
+  wetter:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Skripte holen
+        run: |
+          git clone --quiet --depth 1 --filter=blob:none --sparse "https://github.com/${GITHUB_REPOSITORY}.git" src
+          git -C src sparse-checkout set tools
+      - name: Python-Pakete
+        run: |
+          python3 -m venv venv
+          venv/bin/pip install --quiet numpy netCDF4 pyproj pillow
+      - name: Wetterebenen berechnen
+        id: calc
+        continue-on-error: true
+        run: venv/bin/python src/tools/heat_daily.py out
+      - name: Ergebnis ablegen (Zweig heat-daily, ohne Versionsgeschichte)
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          mkdir -p out && cd out
+          if [ ! -f daily.png ]; then
+            echo "Berechnung fehlgeschlagen – alter Stand bleibt erhalten, nur das Protokoll wird ersetzt."
+            for f in daily.png daily.json; do
+              curl -fsSL -o "$f" "https://raw.githubusercontent.com/${GITHUB_REPOSITORY}/heat-daily/$f" || rm -f "$f"
+            done
+          fi
+          git init -q -b heat-daily
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -q -m "Wetterdaten $(date -u +%F)"
+          git push -q -f "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" heat-daily
+      - name: Fehler melden
+        if: steps.calc.outcome == 'failure'
+        run: |
+          cat out/log.txt || true
+          exit 1

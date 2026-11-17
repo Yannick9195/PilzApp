@@ -1,0 +1,56 @@
+name: Heatmap Standortdaten (einmalig)
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths: ['tools/heat_static.py', 'tools/heat_grid.py', '.github/workflows/heat-static.yml']
+
+permissions:
+  contents: write
+
+concurrency:
+  group: heat-static
+  cancel-in-progress: true
+
+jobs:
+  standort:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - name: Skripte holen
+        run: |
+          git clone --quiet --depth 1 --filter=blob:none --sparse "https://github.com/${GITHUB_REPOSITORY}.git" src
+          git -C src sparse-checkout set tools
+      - name: Python-Pakete
+        run: |
+          python3 -m venv venv
+          venv/bin/pip install --quiet numpy rasterio pyproj pillow
+      - name: Baumartenkarte laden (DLR, ca. 525 MB)
+        run: curl -fSL --retry 5 --retry-delay 10 -o tree.tif "https://download.geoservice.dlr.de/TREE_SPECIES_DE/files/treespecies_de_2022.tif"
+      - name: Baumarten und Boden-pH je Zelle berechnen
+        id: calc
+        continue-on-error: true
+        run: venv/bin/python src/tools/heat_static.py out --tree tree.tif
+      - name: Ergebnis ablegen (Zweig heat-static)
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          mkdir -p out && cd out
+          if [ ! -f static.png ]; then
+            echo "Berechnung fehlgeschlagen – alter Stand bleibt erhalten, nur das Protokoll wird ersetzt."
+            for f in static.png static.json; do
+              curl -fsSL -o "$f" "https://raw.githubusercontent.com/${GITHUB_REPOSITORY}/heat-static/$f" || rm -f "$f"
+            done
+          fi
+          git init -q -b heat-static
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -q -m "Standortdaten $(date -u +%F)"
+          git push -q -f "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" heat-static
+      - name: Fehler melden
+        if: steps.calc.outcome == 'failure'
+        run: |
+          cat out/log.txt || true
+          exit 1

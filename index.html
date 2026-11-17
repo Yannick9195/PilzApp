@@ -138,6 +138,7 @@ a.synl{text-decoration:underline dotted;text-underline-offset:3px;cursor:pointer
     <a href="#gattungen" data-tab="gattungen"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 5h16M4 12h16M4 19h10"/></svg>Gattungen</a>
     <a href="#vergleich" data-tab="vergleich"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="4" width="7" height="16" rx="2"/><rect x="14" y="4" width="7" height="16" rx="2"/></svg>Vergleich</a>
     <a href="#lernen" data-tab="lernen"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 4 2 9l10 5 10-5-10-5Z"/><path d="M6 11v5c0 1.5 2.7 3 6 3s6-1.5 6-3v-5"/></svg>Lernen</a>
+    <a href="#karte" data-tab="karte"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 21s-6.5-5.6-6.5-11a6.5 6.5 0 0 1 13 0c0 5.4-6.5 11-6.5 11Z"/><circle cx="12" cy="10" r="2.4"/></svg>Karte</a>
     <a href="#mehr" data-tab="mehr"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="8" r="3.5"/><path d="M5 20c.8-3.5 3.6-5.5 7-5.5s6.2 2 7 5.5"/></svg>Profil</a>
   </nav>
 </header>
@@ -150,6 +151,7 @@ a.synl{text-decoration:underline dotted;text-underline-offset:3px;cursor:pointer
 <script src="data/questions.js"></script>
 <script src="data/photos.js"></script>
 <script src="data/syndromes.js"></script>
+<script src="heat.js"></script>
 <script>
 (()=>{'use strict';
 const V=window.VOCAB,SP=(window.SPECIES||[]).slice(),GE=window.GENERA||[],QS=window.QUESTIONS||[],PH=window.PHOTOS||{};
@@ -251,12 +253,13 @@ const phSet=(im,p)=>{if(p.k){im.src=BLANK;im.dataset.pk=p.k;im.dataset.po=p.o;im
 const thumb=s=>{const p=PHT[s.id]||photos(s.id)[0];return p?phImg(p,s.de,1):art(s)};
 /* ---------- Router ---------- */
 const view=$('#view');let cur='',listY=0;
-const HIST=[],MAINV=['arten','gattungen','vergleich','lernen','mehr'];
-const parentOf=h=>h.startsWith('art-')?'arten':h.startsWith('gattung-')?'gattungen':['quiz','fragen','duell','raten','statistik','gifte'].includes(h)?'lernen':'arten';
+const HIST=[],MAINV=['arten','gattungen','vergleich','lernen','karte','mehr'];
+const parentOf=h=>h.startsWith('karte-')?'karte':h.startsWith('art-')?'arten':h.startsWith('gattung-')?'gattungen':['quiz','fragen','duell','raten','statistik','gifte'].includes(h)?'lernen':'arten';
 function route(){const h=decodeURIComponent(location.hash.slice(1))||'arten';view.classList.remove('compact');
  if(HIST.length>1&&HIST[HIST.length-2]===h)HIST.pop();else if(HIST[HIST.length-1]!==h)HIST.push(h);
  const bk=$('#back');if(bk)bk.hidden=MAINV.includes(h);if(cur==='arten')listY=window.scrollY;cur=h;let m;
  $$('#tabs a').forEach(a=>a.classList.toggle('on',h.startsWith(a.dataset.tab)||(a.dataset.tab==='arten'&&h.startsWith('art-'))||(a.dataset.tab==='gattungen'&&h.startsWith('gattung-'))||(a.dataset.tab==='lernen'&&['quiz','fragen','duell','raten','statistik','gifte'].includes(h))));
+ if((m=h.match(/^karte(?:-(.+))?$/))&&window.HEAT){if(SPY){SPY.disconnect();SPY=null}window.HEAT.view(view,m[1]);window.scrollTo(0,0);return}
  if((m=h.match(/^art-(.+)$/))){vArt(m[1]);window.scrollTo(0,0);return}if((m=h.match(/^gattung-(.+)$/))){vGattung(m[1]);window.scrollTo(0,0);return}
  const r={arten:vArten,gattungen:vGattungen,vergleich:vVergleich,lernen:vLernen,mehr:vMehr,gifte:vGifte,quiz:vQuiz,fragen:vFragen,duell:vDuell,raten:vRaten,statistik:vStat}[h];
  (r||vArten)();if(h==='arten')requestAnimationFrame(()=>window.scrollTo(0,listY));else window.scrollTo(0,0)}
@@ -380,7 +383,7 @@ function vArt(id){const s=BY[id];if(SPY){SPY.disconnect();SPY=null}if(!s){view.i
  const nav=[...SECT.flatMap(x=>x[1]).filter(has),'note'].map(key=>`<button class="a-${key} ${key==='wert'?swc:''}" data-act="jump" data-t="${key}"><i></i>${esc(NAVL[key]||'Notizen')}</button>`).join('');
  const body=SECT.map(([t,keys])=>{const cs=keys.filter(has);return cs.length?`<h2 class="shd">${esc(t)}</h2><div class="tgrid">${cs.map(key=>tcard(key,esc(C[key][0]),C[key][1],key==='wert'?swc:'')).join('')}</div>`:''}).join('');
  view.innerHTML=`${hero}<div class="head"><div class="badges">${lvBadge(s)}${swBadge(s)}${protBadge(s)}${vtBadges(s)}${c&&c.b?`<span class="b">${c.b>=6?'gemeistert':'Fach '+c.b}</span>`:''}</div><h1>${esc(s.de)}</h1><div class="sci">${esc(s.sci)}${s.au?` <span class="mut" style="font-style:normal">${esc(s.au)}</span>`:''}</div>${(s.alt||[]).length||(s.syn||[]).length?`<div class="alt">${(s.alt||[]).length?'auch: '+s.alt.map(esc).join(', '):''}${(s.syn||[]).length?((s.alt||[]).length?' · ':'')+'Syn.: '+s.syn.map(x=>`<i>${esc(x)}</i>`).join(', '):''}</div>`:''}</div>
- <div class="row" style="margin:10px 0"><button class="btn sm" data-act="fav" data-id="${id}">${fav?'★ Favorit':'☆ Favorit'}</button><button class="btn sm" data-act="cmpWith" data-id="${id}">⇄ Vergleichen${vwIds.length?' mit Doppelgängern':''}</button><button class="btn sm pri" data-act="learnOne" data-id="${id}">▶ Abfragen</button></div>
+ <div class="row" style="margin:10px 0"><button class="btn sm" data-act="fav" data-id="${id}">${fav?'★ Favorit':'☆ Favorit'}</button><button class="btn sm" data-act="cmpWith" data-id="${id}">⇄ Vergleichen${vwIds.length?' mit Doppelgängern':''}</button><button class="btn sm pri" data-act="learnOne" data-id="${id}">▶ Abfragen</button>${window.HEAT?`<a class="btn sm" href="#karte-${id}">◎ Wo wächst er gerade?</a>`:''}</div>
  ${!raw(s,'sw').length?`<div class="warnbox g">Für diese Art ist der ausführliche Steckbrief noch in Arbeit.</div>`:''}${k==='t'?`<div class="warnbox t">☠ <div>Tödlich giftig${req(s,'sy').filter(x=>x!=='kein').length?' – '+req(s,'sy').map(x=>esc(lab('sy',x))).join(', '):''}</div></div>`:k==='g'?`<div class="warnbox g">⚠ <div>Giftig – nicht essen.</div></div>`:''}
  ${s.tx.merke?`<div class="kenn"><b>Auf einen Blick – die wichtigsten Erkennungsmerkmale:</b><br>${esc(s.tx.merke)}</div>`:''}
  <nav class="jn" id="jn" aria-label="Abschnitte">${nav}</nav>

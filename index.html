@@ -1,0 +1,610 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Pilzwissen – Lernapp für Pilzsachverständige</title>
+<meta name="theme-color" content="#2e3a28">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,700&family=Inter:wght@400;500;600;700&display=swap">
+<style>
+:root{--bg:#f4efe4;--card:#fffdf7;--ink:#29241d;--mut:#6d6457;--line:#e3d9c6;--moss:#3c5636;--moss2:#5c7a4c;--rust:#b4532a;--amber:#b7800f;--ok:#2f7a45;--bad:#b13a2b;--deadly:#7b1421;--info:#2c6a88;--chip:#efe7d6;--chipOn:#3c5636;--chipOnInk:#fff;--sh:0 1px 2px rgba(40,30,10,.06),0 8px 24px rgba(40,30,10,.07);--r:16px;--sb:env(safe-area-inset-bottom,0px);--st:env(safe-area-inset-top,0px)}
+.dark{--bg:#141711;--card:#1d2219;--ink:#ece6d8;--mut:#a39b8c;--line:#30372a;--moss:#a7c792;--moss2:#86a971;--rust:#e5916a;--amber:#e3b04b;--ok:#73c487;--bad:#f07f70;--deadly:#ff8d99;--info:#7cc0e0;--chip:#283023;--chipOn:#a7c792;--chipOnInk:#13170f;--sh:0 1px 2px rgba(0,0,0,.35),0 8px 24px rgba(0,0,0,.3)}
+*{box-sizing:border-box}html,body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.5 Inter,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;-webkit-text-size-adjust:100%}
+h1,h2,h3,.serif{font-family:Fraunces,Georgia,serif;letter-spacing:-.01em;line-height:1.15}h1{font-size:1.7rem;margin:.2em 0}h2{font-size:1.3rem;margin:.2em 0 .5em}h3{font-size:1.05rem;margin:0 0 .4em}
+a{color:inherit;text-decoration:none}button,input,select,textarea{font:inherit;color:inherit}button{cursor:pointer}
+.top{position:sticky;top:0;z-index:30;background:var(--bg);padding:calc(8px + var(--st)) 16px 8px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:12px}
+.brand{display:flex;align-items:center;gap:8px;font-family:Fraunces,Georgia,serif;font-weight:700;font-size:1.15rem;white-space:nowrap}.brand svg{width:28px;height:28px}
+.wrap{max-width:1120px;margin:0 auto;padding:14px 14px calc(96px + var(--sb))}
+nav.tabs{position:fixed;left:0;right:0;bottom:0;z-index:40;display:flex;justify-content:space-around;background:var(--card);border-top:1px solid var(--line);padding:6px 4px calc(6px + var(--sb))}
+nav.tabs a{flex:1;display:flex;flex-direction:column;align-items:center;gap:2px;font-size:.72rem;color:var(--mut);padding:4px 0;border-radius:12px}nav.tabs a svg{width:23px;height:23px}nav.tabs a.on{color:var(--moss);font-weight:600}
+@media(min-width:900px){nav.tabs{position:static;border:0;background:none;padding:0;justify-content:flex-end;gap:4px;flex:1}nav.tabs a{flex:0 0 auto;flex-direction:row;font-size:.9rem;padding:8px 12px;gap:6px}nav.tabs a.on{background:var(--chip)}nav.tabs a svg{width:18px;height:18px}.wrap{padding-bottom:40px}}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;border:1px solid var(--line);background:var(--card);border-radius:12px;padding:9px 14px;font-weight:600;font-size:.92rem}.btn.pri{background:var(--moss);border-color:var(--moss);color:var(--chipOnInk)}.btn.ghost{background:transparent}.btn.sm{padding:6px 10px;font-size:.83rem;border-radius:10px}.btn:disabled{opacity:.45;cursor:default}.btn.bad{color:var(--bad)}.btn.big{padding:13px 18px;font-size:1rem;border-radius:14px}
+.row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}.sp{flex:1}.mut{color:var(--mut)}.small{font-size:.84rem}.tiny{font-size:.76rem}.c{text-align:center}
+.inp{width:100%;border:1px solid var(--line);background:var(--card);border-radius:12px;padding:11px 14px;font-size:1rem;outline:none}.inp:focus{border-color:var(--moss2)}
+.panel{background:var(--card);border:1px solid var(--line);border-radius:var(--r);box-shadow:var(--sh);padding:16px;margin:12px 0}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(158px,1fr));gap:12px}@media(min-width:700px){.grid{grid-template-columns:repeat(auto-fill,minmax(200px,1fr))}}
+.card{background:var(--card);border:1px solid var(--line);border-radius:var(--r);overflow:hidden;box-shadow:var(--sh);display:flex;flex-direction:column;transition:transform .12s}.card:active{transform:scale(.98)}
+.thumb{aspect-ratio:4/3;background:var(--chip);position:relative;overflow:hidden}.thumb img,.thumb svg{width:100%;height:100%;object-fit:cover;display:block}
+.cb{padding:9px 11px 11px}.de{font-weight:650;font-size:.95rem;line-height:1.25}.sci{font-style:italic;color:var(--mut);font-size:.83rem}
+.badges{display:flex;gap:4px;flex-wrap:wrap;margin-top:6px}.b{font-size:.7rem;font-weight:700;padding:2px 7px;border-radius:99px;background:var(--chip);color:var(--mut);white-space:nowrap}
+.b.ok{background:#dcefdc;color:#1f5f33}.b.warn{background:#f8e8c4;color:#7a5306}.b.bad{background:#f8d8d2;color:#8f2618}.b.deadly{background:#5e0f1a;color:#fff}.b.neutral{background:var(--chip);color:var(--mut)}.b.lv{background:var(--moss);color:var(--chipOnInk)}.b.prot{background:#d8e8f2;color:#1f5675}
+.dark .b.ok{background:#21402a;color:#9fe0b0}.dark .b.warn{background:#4a3a12;color:#f3d48c}.dark .b.bad{background:#4f231c;color:#ffb3a7}.dark .b.prot{background:#1c3a4a;color:#a9d6ee}
+.dots{position:absolute;right:7px;top:7px;display:flex;gap:2px;background:rgba(20,20,10,.45);padding:3px 5px;border-radius:99px}.dots i{width:6px;height:6px;border-radius:50%;background:rgba(255,255,255,.35)}.dots i.f{background:#ffd76a}.dots.m i{background:#8fe08f}
+.chips{display:flex;flex-wrap:wrap;gap:6px}.chip{border:1px solid var(--line);background:var(--chip);border-radius:99px;padding:6px 11px;font-size:.84rem;display:inline-flex;align-items:center;gap:6px;user-select:none;line-height:1.2}
+.chip.on{background:var(--chipOn);color:var(--chipOnInk);border-color:var(--chipOn)}.chip .n{font-size:.72rem;opacity:.65}.chip.dis{opacity:.38}
+.sw{width:14px;height:14px;border-radius:50%;border:1px solid rgba(0,0,0,.18);display:inline-block;flex:none}
+.chip.r-ok{background:var(--ok);border-color:var(--ok);color:#fff}.chip.r-bad{background:var(--bad);border-color:var(--bad);color:#fff;text-decoration:line-through}.chip.r-miss{border:2px dashed var(--ok);color:var(--ok);background:transparent;font-weight:700}.chip.r-opt{border-style:dotted}
+.sheet{position:fixed;inset:0;z-index:60;display:none}.sheet.open{display:block}.sheet .bg{position:absolute;inset:0;background:rgba(10,10,5,.45)}
+.sheet .pan{position:absolute;left:0;right:0;bottom:0;max-height:88vh;overflow:auto;background:var(--bg);border-radius:20px 20px 0 0;padding:14px 16px calc(20px + var(--sb))}
+@media(min-width:900px){.sheet .pan{left:auto;top:0;bottom:0;width:460px;max-height:none;border-radius:0}}
+.sheethead{position:sticky;top:-14px;background:var(--bg);padding:6px 0 10px;z-index:2;display:flex;align-items:center;gap:8px;border-bottom:1px solid var(--line);margin-bottom:8px}
+details.fg{border-bottom:1px solid var(--line);padding:8px 0}details.fg summary{font-weight:650;cursor:pointer;list-style:none;display:flex;align-items:center;gap:6px}details.fg summary::-webkit-details-marker{display:none}details.fg summary:after{content:"▾";margin-left:auto;color:var(--mut)}details.fg[open] summary:after{content:"▴"}
+.fcat{margin:10px 0 4px;font-size:.8rem;font-weight:700;color:var(--mut);text-transform:uppercase;letter-spacing:.04em}
+.hero{position:relative;border-radius:22px;overflow:hidden;background:var(--chip);box-shadow:var(--sh)}.hero .ph,.hero img{width:100%;aspect-ratio:16/10;object-fit:cover;display:block}@media(min-width:900px){.hero .ph,.hero img{aspect-ratio:21/9}}
+.hero .hzoom{position:absolute;inset:0;background:transparent;border:0;padding:0;cursor:zoom-in}.hero .credit{z-index:2}
+.gal{display:flex;gap:8px;overflow-x:auto;padding:8px 2px 4px;scroll-snap-type:x proximity;-webkit-overflow-scrolling:touch}.gal .gt{flex:0 0 auto;width:96px;height:72px;border:0;padding:0;border-radius:12px;overflow:hidden;background:var(--chip);scroll-snap-align:start;cursor:zoom-in}.gal .gt img{width:100%;height:100%;object-fit:cover;display:block}
+#lb{position:fixed;inset:0;z-index:1000;background:#0f0c0a;display:flex;flex-direction:column;color:#fff}.lbt{display:flex;gap:10px;align-items:center;padding:10px 12px;font-size:.85rem}.lbt .lbnm{flex:1;opacity:.8;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.lbx{background:rgba(255,255,255,.14);color:#fff;border:0;border-radius:50%;width:40px;height:40px;font-size:1.05rem;cursor:pointer}
+.lbm{flex:1;position:relative;display:flex;align-items:center;justify-content:center;min-height:0;padding:0 4px}.lbm img{max-width:100%;max-height:100%;object-fit:contain;display:block;border-radius:6px}.lbn{position:absolute;top:50%;transform:translateY(-50%);background:rgba(0,0,0,.5);color:#fff;border:0;border-radius:50%;width:46px;height:46px;font-size:1.7rem;line-height:1;cursor:pointer}.lbn.l{left:8px}.lbn.r{right:8px}
+.lbc{padding:10px 16px calc(14px + env(safe-area-inset-bottom));font-size:.88rem}.lbcap{margin:0 0 6px;font-weight:600;line-height:1.35}.lbcr{margin:0;opacity:.75;font-size:.72rem}.lbcr a{color:#fff;text-decoration:underline}body.lbopen{overflow:hidden}
+.credit{position:absolute;right:8px;bottom:8px;font-size:.66rem;background:rgba(0,0,0,.5);color:#fff;padding:2px 7px;border-radius:8px;max-width:80%}.credit a{text-decoration:underline}
+.pnav{position:absolute;top:50%;transform:translateY(-50%);background:rgba(0,0,0,.45);color:#fff;border:0;border-radius:50%;width:34px;height:34px}.pnav.l{left:8px}.pnav.r{right:8px}
+.head{margin:14px 2px 4px}.head .sci{font-size:1rem}.alt{font-size:.85rem;color:var(--mut);margin-top:2px}
+.facts{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px;margin:12px 0}.fact{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:9px 11px}.fact .k{font-size:.72rem;text-transform:uppercase;letter-spacing:.05em;color:var(--mut);font-weight:700}.fact .v{font-weight:600;font-size:.9rem}
+.sec{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:14px 16px;margin:10px 0}.sec p{margin:.2em 0}.sec dl{margin:0;display:grid;grid-template-columns:110px 1fr;gap:6px 12px}.sec dt{font-weight:650;color:var(--mut);font-size:.88rem}.sec dd{margin:0}
+@media(max-width:520px){.sec dl{grid-template-columns:1fr}.sec dt{margin-top:6px}}
+.warnbox{border-radius:14px;padding:12px 14px;margin:10px 0;font-weight:600;display:flex;gap:10px;align-items:flex-start}.warnbox.t{background:#5e0f1a;color:#fff}.warnbox.g{background:#f8d8d2;color:#7d2216}.dark .warnbox.g{background:#4f231c;color:#ffc2b8}
+.kenn{border-left:4px solid var(--moss2);background:var(--chip);border-radius:0 12px 12px 0;padding:10px 14px;margin:10px 0}
+.vw{display:flex;gap:10px;padding:9px 0;border-bottom:1px dashed var(--line)}.vw:last-child{border:0}.vw .nm{font-weight:650}
+.tbl{overflow-x:auto;margin:10px -14px;padding:0 14px}.tbl table{border-collapse:separate;border-spacing:0;min-width:100%}.tbl th,.tbl td{vertical-align:top;padding:9px 10px;border-bottom:1px solid var(--line);font-size:.86rem;min-width:165px;max-width:320px;background:var(--card)}.tbl th:first-child,.tbl td:first-child{position:sticky;left:0;z-index:1;min-width:104px;max-width:120px;font-weight:700;color:var(--mut);background:var(--bg);font-size:.78rem;text-transform:uppercase;letter-spacing:.03em;-webkit-hyphens:auto;hyphens:auto;overflow-wrap:anywhere}
+.diff{background:#fff2c9!important;color:#5a4100!important;border-color:#e8cf7a!important;font-weight:700}.dark .diff{background:#4a3b10!important;color:#ffe08a!important}
+.qcard{background:var(--card);border:1px solid var(--line);border-radius:22px;box-shadow:var(--sh);padding:18px;margin:12px 0}.qname{font-family:Fraunces,Georgia,serif;font-size:1.6rem;font-weight:700;line-height:1.15}
+.qcat{border-top:1px solid var(--line);padding:12px 0}.qcat h4{margin:0 0 8px;font-size:.92rem;display:flex;gap:8px;align-items:center}.qcat h4 .res{margin-left:auto;font-size:1rem}
+.prog{height:6px;background:var(--chip);border-radius:9px;overflow:hidden;margin:8px 0}.prog i{display:block;height:100%;background:var(--moss2);border-radius:9px;transition:width .3s}
+.sticky-act{position:sticky;bottom:calc(76px + var(--sb));z-index:5;display:flex;gap:8px;padding:10px 0;background:linear-gradient(transparent,var(--bg) 30%)}@media(min-width:900px){.sticky-act{bottom:0}}
+.answer{white-space:pre-line;background:var(--chip);border-radius:14px;padding:12px 14px;margin-top:12px}.expl{font-size:.88rem;color:var(--mut);margin-top:8px;white-space:pre-line}
+.hubgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:12px}.hub{background:var(--card);border:1px solid var(--line);border-radius:20px;padding:16px;box-shadow:var(--sh);display:flex;flex-direction:column;gap:8px}.hub .ic{width:42px;height:42px;border-radius:12px;display:grid;place-items:center;background:var(--chip);font-size:1.4rem}
+.boxes{display:flex;gap:4px;align-items:flex-end;height:64px;margin:6px 0}.boxes div{flex:1;background:var(--moss2);border-radius:6px 6px 0 0;min-height:3px;position:relative}.boxes div span{position:absolute;top:-17px;left:0;right:0;text-align:center;font-size:.7rem;color:var(--mut)}.boxl{display:flex;gap:4px}.boxl span{flex:1;text-align:center;font-size:.68rem;color:var(--mut)}
+.toast{position:fixed;left:50%;bottom:calc(90px + var(--sb));transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:12px;z-index:90;opacity:0;transition:opacity .2s;pointer-events:none;max-width:90vw;font-size:.9rem}.toast.on{opacity:1}
+.sugg{position:absolute;left:0;right:0;top:100%;background:var(--card);border:1px solid var(--line);border-radius:12px;box-shadow:var(--sh);z-index:20;max-height:300px;overflow:auto}.sugg a{display:block;padding:9px 12px;border-bottom:1px solid var(--line)}.rel{position:relative}
+.seg{display:inline-flex;background:var(--chip);border-radius:12px;padding:3px;gap:2px;flex-wrap:wrap}.seg button{border:0;background:none;padding:6px 11px;border-radius:9px;font-size:.85rem;font-weight:600;color:var(--mut)}.seg button.on{background:var(--card);color:var(--ink);box-shadow:var(--sh)}
+.empty{text-align:center;padding:40px 10px;color:var(--mut)}
+.glist a{display:flex;justify-content:space-between;align-items:center;padding:12px 14px;background:var(--card);border:1px solid var(--line);border-radius:14px;margin-bottom:8px}
+select.inp{padding:9px 12px;width:auto}
+textarea.inp{min-height:90px;resize:vertical}
+.opt{display:block;width:100%;text-align:left;border:1px solid var(--line);background:var(--card);border-radius:14px;padding:12px 14px;margin:6px 0;font-weight:600}.opt.r-ok{background:var(--ok);color:#fff;border-color:var(--ok)}.opt.r-bad{background:var(--bad);color:#fff;border-color:var(--bad)}
+.kbd{font-size:.75rem;color:var(--mut)}
+.syn{border:1px solid var(--line);border-radius:14px;padding:12px 14px;margin:8px 0;background:var(--card)}.syn.t{border-left:5px solid #8b1a2b}.syn.g{border-left:5px solid #c0612b}.syn.l{border-left:5px solid #c9a227}
+.synh{display:flex;gap:8px;align-items:center;justify-content:space-between;flex-wrap:wrap}
+.syndl{display:grid;grid-template-columns:92px 1fr;gap:6px 10px;margin:0 0 8px}.syndl dt{font-weight:650;color:var(--mut);font-size:.84rem}.syndl dd{margin:0}
+.ul{margin:0;padding-left:18px}.ul li{margin:2px 0}
+.hint{border-radius:12px;padding:9px 12px;margin:8px 0;background:#fbefd5;color:#5c430c}.dark .hint{background:#3d3214;color:#f3dfa6}
+.hint.unklar,.hint.alk,.hint.roh{background:#f8dcd6;color:#7d2216}.dark .hint.unklar,.dark .hint.alk,.dark .hint.roh{background:#4f231c;color:#ffc2b8}
+a.synl{text-decoration:underline dotted;text-underline-offset:3px;cursor:pointer;color:inherit;font-weight:650}
+.chip[data-act="syn"],.chip[data-act="vt"]{cursor:pointer;text-decoration:underline dotted;text-underline-offset:3px}
+.synsec>summary{cursor:pointer;list-style:none}.synsec>summary::-webkit-details-marker{display:none}.synsec[open]>summary{margin-bottom:6px}
+.panel.help{border-left:5px solid #8b1a2b}
+.subl{font-size:.78rem;font-weight:700;color:var(--mut);margin:8px 0 4px}.qsub+.qsub{margin-top:6px}
+.tastew{margin-top:6px;padding:7px 10px;border-radius:10px;background:#f8d8d2;color:#7d2216;font-weight:700;font-size:.84rem;line-height:1.35}.dark .tastew{background:#4f231c;color:#ffc2b8}
+.chip.same{opacity:.5;background:transparent}.tbl tr.samerow td{opacity:.75}.tbl td.sepcell{position:static!important;background:var(--bg)!important;color:var(--mut);text-transform:none;font-size:.9rem;font-weight:700;max-width:none}
+.samel{display:grid;grid-template-columns:minmax(140px,38%) 1fr;gap:10px;padding:6px 0;border-bottom:1px dashed var(--line);font-size:.88rem}details.sec summary{cursor:pointer}
+.jn{position:sticky;top:var(--hh,56px);z-index:15;display:flex;gap:6px;overflow-x:auto;margin:10px -14px 0;padding:8px 14px;background:var(--bg);border-bottom:1px solid var(--line);scrollbar-width:none;-webkit-overflow-scrolling:touch}
+.jn::-webkit-scrollbar{display:none}
+.jn button{flex:none;display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line);background:var(--card);border-radius:99px;padding:5px 11px 5px 8px;font-size:.8rem;font-weight:600;white-space:nowrap;color:var(--ink)}
+.jn button i{width:9px;height:9px;border-radius:50%;background:var(--ac);flex:none}
+.jn button.on{background:var(--ac);border-color:var(--ac);color:#fff}.jn button.on i{background:#fff}
+.dark .jn button.on{color:#13170f}.dark .jn button.on i{background:#13170f}
+.shd{display:flex;align-items:center;gap:10px;margin:22px 2px 10px;font:700 .78rem/1.2 Inter,system-ui,sans-serif;letter-spacing:.08em;text-transform:uppercase;color:var(--mut)}.shd:after{content:"";flex:1;height:1px;background:var(--line)}
+.tgrid{display:block}@media(min-width:760px){.tgrid{columns:2;column-gap:12px}}
+.tc{--ac:#6d6457;display:inline-block;width:100%;vertical-align:top;background:var(--card);border:1px solid var(--line);border-left:4px solid var(--ac);border-radius:16px;margin:0 0 12px;box-shadow:var(--sh);break-inside:avoid;scroll-margin-top:calc(var(--hh,56px) + 58px);overflow:hidden}
+.tch{display:flex;align-items:center;gap:10px;margin:0;padding:9px 14px;font-size:1.02rem;color:var(--ac);background:var(--chip);background:color-mix(in srgb,var(--ac) 9%,var(--card));border-bottom:1px solid var(--line)}
+.tci{width:30px;height:30px;border-radius:9px;background:var(--ac);color:#fff;display:grid;place-items:center;flex:none}.tci svg{width:18px;height:18px}.dark .tci{color:#13170f}
+.tcb{padding:2px 14px 12px}
+.trw{display:grid;grid-template-columns:6.9em 1fr;gap:2px 10px;padding:6px 0;border-bottom:1px dashed var(--line);align-items:baseline}.tcb>.trw:last-child{border-bottom:0}
+.trl{font-size:.74rem;font-weight:700;color:var(--mut);line-height:1.25;text-transform:uppercase;letter-spacing:.02em}
+.vals{line-height:1.45;font-size:.92rem;font-weight:600}.vals .v{display:inline}.vals .v:not(:last-child):after{content:", ";font-weight:500;color:var(--mut)}
+.vals .v.o{color:var(--mut);font-weight:500}.vals small{font-size:.72rem;font-weight:500}.vals .sw{display:inline-block;width:11px;height:11px;vertical-align:-1px;margin-right:5px}
+.sbbar{display:flex;align-items:center;gap:8px;margin:8px 2px 0}.sbbar .seg button{padding:4px 10px;font-size:.78rem}
+#view.compact .tc:not(.a-wert):not(.a-vw) .ttx,#view.compact .grow,#view.compact .mleg{display:none}#view.compact .tcb>.trw:last-of-type{border-bottom:0}
+.synf{border:1px solid var(--line);border-radius:12px;margin:10px 0 0;background:var(--bg)}.synf>summary{cursor:pointer;list-style:none;padding:9px 12px;display:flex;flex-direction:column;gap:1px}.synf>summary::-webkit-details-marker{display:none}
+.synf>summary span{font-size:.76rem;color:var(--mut);font-weight:700}.synf>summary b{color:var(--ac)}.synf>summary:after{content:"▾ aufklappen";font-size:.74rem;color:var(--mut)}.synf[open]>summary:after{content:"▴ zuklappen"}.synf .syn{margin:0 8px 8px}
+.hero svg.ph{aspect-ratio:2/1}@media(min-width:900px){.hero svg.ph{aspect-ratio:21/7}}
+.ttx{margin:9px 0 0;font-size:.93rem;line-height:1.5}.tsub{margin:12px 0 0;font-size:.9rem;color:var(--ac)}
+.tcb .hint,.tcb .syn{margin:8px 0}.tcb>h3{font-size:.95rem}
+.a-gestalt{--ac:#8a5a3c}.a-hut{--ac:#b4532a}.a-fs{--ac:#9a6a12}.a-stiel{--ac:#66772a}.a-fleisch{--ac:#a8445c}.a-geruch{--ac:#7a4f9a}.a-sporen{--ac:#7d6a55}.a-oeko{--ac:#2f7a45}.a-zeit{--ac:#2c6a88}.a-vw{--ac:#c0612b}.a-info{--ac:#55687a}.a-sys,.a-link,.a-note{--ac:#7a7062}
+.a-wert.ok{--ac:#2f7a45}.a-wert.warn{--ac:#b7800f}.a-wert.bad{--ac:#b13a2b}.a-wert.deadly{--ac:#7b1421}.a-wert.neutral{--ac:#6d6457}
+.dark .a-gestalt{--ac:#d9a27e}.dark .a-hut{--ac:#e5916a}.dark .a-fs{--ac:#e3b04b}.dark .a-stiel{--ac:#b9c86e}.dark .a-fleisch{--ac:#ec8fa5}.dark .a-geruch{--ac:#c7a2e6}.dark .a-sporen{--ac:#cdb79c}.dark .a-oeko{--ac:#73c487}.dark .a-zeit{--ac:#7cc0e0}.dark .a-vw{--ac:#f0a070}.dark .a-info{--ac:#a9bccd}.dark .a-sys,.dark .a-link,.dark .a-note{--ac:#a39b8c}
+.dark .a-wert.ok{--ac:#73c487}.dark .a-wert.warn{--ac:#e3b04b}.dark .a-wert.bad{--ac:#f07f70}.dark .a-wert.deadly{--ac:#ff8d99}.dark .a-wert.neutral{--ac:#a39b8c}
+.mbar{--mc:#2c6a88;display:grid;grid-template-columns:repeat(12,1fr);gap:3px;margin:10px 0 6px}.dark .mbar{--mc:#7cc0e0}
+.mbar .m{height:30px;border-radius:7px;background:var(--chip);display:grid;place-items:center;font-size:.72rem;font-weight:700;color:var(--mut)}
+.mbar .m1{background:#cfe0ea;background:color-mix(in srgb,var(--mc) 28%,var(--card));color:var(--ink)}.mbar .m2{background:var(--mc);color:#fff}.dark .mbar .m2{color:#13170f}
+.mbar .now{box-shadow:inset 0 0 0 2px var(--ink)}
+.mbar.mini{gap:2px;margin:2px 0;min-width:140px}.mbar.mini .m{height:14px;border-radius:3px}
+.mleg{display:flex;flex-wrap:wrap;gap:4px 14px;font-size:.75rem;color:var(--mut);margin:2px 0 8px}
+.mleg i{display:inline-block;width:11px;height:11px;border-radius:3px;vertical-align:-1px;margin-right:5px}.mleg .k2{background:#2c6a88}.dark .mleg .k2{background:#7cc0e0}
+.mleg .k1{background:#cfe0ea;background:color-mix(in srgb,#2c6a88 28%,var(--card))}.dark .mleg .k1{background:color-mix(in srgb,#7cc0e0 28%,var(--card))}.mleg .kn{box-shadow:inset 0 0 0 2px var(--ink)}
+.mtx{font-size:.9rem;display:grid;gap:2px}
+.grow{margin-top:10px;padding:9px 12px;border-radius:12px;background:var(--chip);background:color-mix(in srgb,var(--ac) 8%,var(--card));border:1px solid var(--line);font-size:.88rem}.grow b{color:var(--ac)}.grow p{margin:4px 0 0}
+.back{display:inline-flex;align-items:center;gap:2px;border:1px solid var(--line);background:var(--card);border-radius:12px;padding:6px 12px 6px 6px;font-weight:600;font-size:.9rem;color:var(--ink);flex:none}.back svg{width:20px;height:20px}.back[hidden]{display:none}
+</style>
+</head>
+<body>
+<header class="top">
+  <button class="back" id="back" data-act="back" hidden aria-label="Zurück"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg>Zurück</button>
+  <a class="brand" href="#arten"><svg viewBox="0 0 32 32" aria-hidden="true"><path d="M3 15C3 7.5 9 3 16 3s13 4.5 13 12c0 1.2-1 2-2.2 2H5.2C4 17 3 16.2 3 15Z" fill="#b4532a"/><circle cx="11" cy="9" r="1.8" fill="#fff6e6"/><circle cx="19" cy="7.5" r="1.4" fill="#fff6e6"/><circle cx="22.5" cy="12" r="1.6" fill="#fff6e6"/><path d="M12 17h8l1.2 10.5c.2 1.4-.9 2.5-2.3 2.5h-5.8c-1.4 0-2.5-1.1-2.3-2.5Z" fill="#efe3c8"/></svg><span>Pilzwissen</span></a>
+  <nav class="tabs" id="tabs">
+    <a href="#arten" data-tab="arten"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 11c0-4.4 4-8 9-8s9 3.6 9 8H3Z"/><path d="M9.5 11v7a2.5 2.5 0 0 0 5 0v-7"/></svg>Arten</a>
+    <a href="#gattungen" data-tab="gattungen"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 5h16M4 12h16M4 19h10"/></svg>Gattungen</a>
+    <a href="#vergleich" data-tab="vergleich"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="4" width="7" height="16" rx="2"/><rect x="14" y="4" width="7" height="16" rx="2"/></svg>Vergleich</a>
+    <a href="#lernen" data-tab="lernen"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 4 2 9l10 5 10-5-10-5Z"/><path d="M6 11v5c0 1.5 2.7 3 6 3s6-1.5 6-3v-5"/></svg>Lernen</a>
+    <a href="#mehr" data-tab="mehr"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="8" r="3.5"/><path d="M5 20c.8-3.5 3.6-5.5 7-5.5s6.2 2 7 5.5"/></svg>Profil</a>
+  </nav>
+</header>
+<main class="wrap" id="view"></main>
+<div class="sheet" id="sheet"><div class="bg" data-act="closeSheet"></div><div class="pan" id="sheetPan"></div></div>
+<div class="toast" id="toast"></div>
+<script src="data/vocab.js"></script>
+<script src="data/species.js"></script>
+<script src="data/genera.js"></script>
+<script src="data/questions.js"></script>
+<script src="data/photos.js"></script>
+<script src="data/syndromes.js"></script>
+<script>
+(()=>{'use strict';
+const V=window.VOCAB,SP=(window.SPECIES||[]).slice(),GE=window.GENERA||[],QS=window.QUESTIONS||[],PH=window.PHOTOS||{};
+const $=(s,r=document)=>r.querySelector(s),$$=(s,r=document)=>[...r.querySelectorAll(s)];
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const norm=s=>String(s||'').toLowerCase().replace(/ä/g,'ae').replace(/ö/g,'oe').replace(/ü/g,'ue').replace(/ß/g,'ss').normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^a-z0-9]+/g,' ').trim();
+const pad=n=>String(n).padStart(2,'0');const ds=d=>d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate());
+const today=()=>ds(new Date());const addDays=(s,n)=>{const[y,m,d]=s.split('-').map(Number);return ds(new Date(y,m-1,d+n))};
+const shuffle=a=>{for(let i=a.length-1;i>0;i--){const j=Math.random()*(i+1)|0;[a[i],a[j]]=[a[j],a[i]]}return a};
+const CL={weiss:'weiß',creme:'creme',gelb:'gelb',ocker:'ocker',orange:'orange',rot:'rot',rosa:'rosa',violett:'violett',blau:'blau',gruen:'grün',oliv:'oliv',braun:'braun',rotbraun:'rotbraun',grau:'grau',schwarz:'schwarz'};
+const optsOf=c=>{const o=V.cats[c].o;return o==='colors'?Object.keys(V.colors).map(k=>[k,CL[k]]):o};
+const lab=(c,v)=>{const o=optsOf(c).find(x=>x[0]===v);return o?o[1]:v};
+const CATS=Object.keys(V.cats);
+const COMBO={};(V.combos||[]).forEach(c=>c.parts.forEach(p=>COMBO[p]=c));
+const UNITS=(()=>{const u=[],done=new Set();CATS.forEach(c=>{const cb=COMBO[c];if(cb){if(done.has(cb.key))return;done.add(cb.key);u.push({key:cb.key,l:cb.l,parts:cb.parts.slice(),sub:cb.sub})}else u.push({key:c,l:V.cats[c].l,parts:[c],sub:{}})});return u})();
+const catLabel=c=>COMBO[c]?COMBO[c].l+' – '+COMBO[c].sub[c]:V.cats[c].l;
+const TW=s=>s.tw?`<div class="tastew">⚠ ${esc(s.tw)}</div>`:'';
+const SYN=window.SYN||{},VTD=window.VTD||{},INFO=window.INFO||{};
+const GEF={t:['lebensgefährlich','deadly'],g:['ernst','bad'],l:['meist leicht','warn']};
+const VTS={roh:'roh giftig',alk:'mit Alkohol giftig',indiv:'nicht für jeden verträglich',menge:'nur kleine Mengen',jung:'nur jung',zub:'besondere Zubereitung',schad:'Schadstoffe',unklar:'giftverdächtig'};
+const pts=t=>String(t||'').split(' | ').filter(Boolean);
+const ulist=t=>{const p=pts(t);return p.length>1?`<ul class="ul">${p.map(x=>`<li>${esc(x)}</li>`).join('')}</ul>`:esc(t)};
+const SYNRX=[[/Phalloides/,'phal'],[/Orellanus/,'orel'],[/Gyromitra/,'gyro'],[/Pantherina/,'panth'],[/Muscarin/,'musc'],[/Psilocybin/,'psilo'],[/Coprinus|Acetaldehyd/,'copr'],[/Paxillus/,'paxi'],[/Equestre|Rhabdomyolyse/,'rhabd'],[/astrointestinal|Magen-Darm/,'gastro'],[/Acromelal/,'acro'],[/Pleurocybella/,'enzeph'],[/Morchella/,'morch'],[/Polyporsäure|Hapalopilus/,'polyp'],[/Proxima/,'prox'],[/Omphalotus/,'omph'],[/Scleroderma/,'scler']];
+const linkSyn=h=>String(h).replace(/(?:Phalloides|Orellanus|Gyromitra|Pantherina|Muscarin|Psilocybin|Coprinus|Acetaldehyd|Paxillus|Equestre|Rhabdomyolyse|Magen-Darm|Acromelalgie|Pleurocybella|Morchella|Polyporsäure|Hapalopilus|Proxima|Omphalotus|Scleroderma)-Syndrom|[Gg]astrointestinale[sn]? Syndrom|Ergotismus/g,m=>{const k=m==='Ergotismus'?'ergot':(SYNRX.find(([r])=>r.test(m))||[])[1];return k&&SYN[k]?`<a class="synl" data-act="syn" data-k="${k}">${m}</a>`:m});
+const iact=(c,v)=>{const x=String(v).replace(/^~/,'');return c==='sy'&&SYN[x]?` data-act="syn" data-k="${x}"`:c==='vt'&&VTD[x]?` data-act="vt" data-k="${x}"`:''};
+function synCard(k,full){const d=SYN[k];if(!d)return '';const g=GEF[d.gefahr]||GEF.g;
+ return `<div class="syn ${esc(d.gefahr||'')}"><div class="synh"><b>${esc(d.name)}</b><span class="b ${g[1]}">${g[0]}</span></div><p class="small" style="margin:4px 0 8px">${esc(d.kurz||'')}</p><dl class="syndl"><dt>Latenz</dt><dd>${esc(d.latenz||'')}</dd><dt>Symptome</dt><dd>${ulist(d.symptome)}</dd>${full?`<dt>Gift</dt><dd>${esc(d.gift||'')}</dd><dt>Verlauf</dt><dd>${ulist(d.verlauf)}</dd><dt>Behandlung</dt><dd>${esc(d.therapie||'')}</dd><dt>Typische Arten</dt><dd>${esc(d.arten||'')}</dd>${d.merke?`<dt>Merke</dt><dd><b>${esc(d.merke)}</b></dd>`:''}`:''}</dl>${full?'':`<button class="btn sm" data-act="syn" data-k="${k}">Gift, Verlauf &amp; Behandlung ›</button>`}</div>`}
+function vtBox(s){return raw(s,'vt').map(v=>{const o=v[0]==='~',x=v.replace(/^~/,''),d=VTD[x]||{};return `<div class="hint ${x}"><b>⚠ ${esc(d.name||lab('vt',x))}${o?' <span class="n">(möglich)</span>':''}</b><div class="small">${esc(d.text||'')}</div></div>`}).join('')}
+const vtBadges=s=>req(s,'vt').filter(x=>VTD[x]).map(x=>`<span class="b ${['unklar','alk','roh'].includes(x)?'bad':'warn'}" data-act="vt" data-k="${x}" style="cursor:pointer">${esc(VTS[x]||x)}</span>`).join('');
+function synSection(s){const ks=raw(s,'sy').filter(v=>SYN[v.replace(/^~/,'')]);if(!ks.length)return '';return `<h3 style="margin-top:14px">Was passiert bei einer Vergiftung?</h3>`+ks.map(v=>(v[0]==='~'?'<div class="small mut" style="margin-top:8px">möglicherweise:</div>':'')+synCard(v.replace(/^~/,''),false)).join('')}
+const synIds=k=>SP.filter(s=>raw(s,'sy').some(v=>v.replace(/^~/,'')===k));
+const spLinks=l=>l.length?`<div class="chips">${l.map(s=>`<a class="chip" href="#art-${s.id}">${esc(s.de)}</a>`).join('')}</div>`:'<p class="small mut">Noch keine Art mit fertigem Steckbrief in der App.</p>';
+const infoLinks=(s,ps)=>{const b=[];if(ps.includes('sy'))req(s,'sy').filter(k=>SYN[k]).forEach(k=>b.push(`<button class="btn sm" data-act="syn" data-k="${k}">ⓘ ${esc(SYN[k].name)}</button>`));if(ps.includes('vt'))req(s,'vt').filter(k=>VTD[k]).forEach(k=>b.push(`<button class="btn sm" data-act="vt" data-k="${k}">ⓘ ${esc(VTD[k].name)}</button>`));return b.length?`<div class="row" style="margin-top:8px;flex-wrap:wrap;gap:6px">${b.join('')}</div>`:''};
+function openSheet(h){const p=$('#sheetPan');p.innerHTML=`<div class="sheethead"><span class="sp"></span><button class="btn sm" data-act="closeSheet">✕ Schließen</button></div>`+h;p.scrollTop=0;$('#sheet').classList.add('open')}
+/* ---------- Daten ---------- */
+SP.forEach(s=>{s.tr=s.tr||{};if(!s.tr.ss)s.tr.ss=['no'];if(!s.tr.sy){s.tr.sy=(s.tr.sw||[]).some(v=>/^~?(g|t)$/.test(v))?[]:['kein']}});
+V.cats.sy.o=[['kein','kein (nicht giftig)']].concat(V.cats.sy.o.filter(o=>o[0]!=='kein'));
+SP.sort((a,b)=>a.de.localeCompare(b.de,'de'));
+const BY={};SP.forEach(s=>{BY[s.id]=s;s._q=norm([s.de,(s.alt||[]).join(' '),s.sci,(s.syn||[]).join(' '),s.gen,s.gde||'',s.fam].join(' '))+' '+[s.de,...(s.alt||[])].map(n=>norm(n).replace(/ /g,'')).join(' ')});
+const GBY={};GE.forEach(g=>GBY[g.id]=g);
+const GSP={};SP.forEach(s=>{(GSP[s.gen]=GSP[s.gen]||[]).push(s.id)});
+const GDE={};SP.forEach(s=>{if(s.gde&&!GDE[s.gen])GDE[s.gen]=s.gde});
+const gdeOf=n=>((GBY[String(n).toLowerCase()]||{}).de)||GDE[n]||'';
+const genLabel=n=>esc(n)+(gdeOf(n)?' ('+esc(gdeOf(n))+')':'');
+const raw=(s,c)=>(s.tr&&s.tr[c])||[];const req=(s,c)=>raw(s,c).filter(v=>v[0]!=='~');const opt=(s,c)=>raw(s,c).filter(v=>v[0]==='~').map(v=>v.slice(1));const allv=(s,c)=>raw(s,c).map(v=>v.replace(/^~/,''));
+const swOf=s=>{const r=req(s,'sw');const order=['t','g','un','k','eg','e'];return order.find(x=>r.includes(x))||r[0]||'k'};
+const PAIRS=(()=>{const m={};SP.forEach(a=>(a.vw||[]).forEach(v=>{if(v.id&&BY[v.id]&&v.id!==a.id){const k=[a.id,v.id].sort().join('|');(m[k]=m[k]||{a:k.split('|')[0],b:k.split('|')[1],h:[]}).h.push({from:a.id,to:v.id,t:v.t})}}));return m})();
+/* ---------- Speicher ---------- */
+const KEY='pilzapp-v1';
+const newProfile=n=>({name:n,created:Date.now(),sp:{},q:{},du:{},notes:{},fav:{},cmp:[],days:{},settings:{newPerDay:10,session:20,cats:null,theme:'auto',spDeck:'1',qTopic:'all',lastBackup:0}});
+let DB=(()=>{try{const j=JSON.parse(localStorage.getItem(KEY));if(j&&j.profiles&&j.profiles[j.active])return j}catch(e){}return{active:'p1',profiles:{p1:newProfile('Mein Profil')}}})();
+const P=()=>DB.profiles[DB.active];let saveOK=true;
+const save=()=>{try{localStorage.setItem(KEY,JSON.stringify(DB));saveOK=true}catch(e){if(saveOK)toast('Achtung: Speichern im Browser nicht möglich – bitte Backup exportieren.');saveOK=false}};
+const INTV=[0,0,1,3,7,14,30];
+const card=(deck,id)=>P()[deck][id];
+const boxOf=(deck,id)=>{const c=card(deck,id);return c?c.b||0:0};
+const isDue=(deck,id,t=today())=>{const c=card(deck,id);return !!(c&&c.b>0&&c.d<=t)};
+function dayLog(k){const t=today();const d=P().days[t]=P().days[t]||{};d[k]=(d[k]||0)+1}
+function grade(deck,id,res){const m=P()[deck];const c=m[id]||{b:0,n:0,r:0,w:0};const wasNew=!c.b;c.n++;
+  if(res==='ok'){c.r++;c.b=Math.min(6,(c.b||1)+1);c.d=addDays(today(),INTV[c.b])}
+  else if(res==='mid'){c.b=Math.max(1,c.b||1);c.d=addDays(today(),1)}
+  else{c.w++;c.b=1;c.d=today()}
+  c.l=Date.now();m[id]=c;if(wasNew)dayLog('new_'+deck);dayLog('rev');save();return c}
+const newToday=deck=>((P().days[today()]||{})['new_'+deck]||0);
+/* ---------- Hilfen ---------- */
+function toast(m){const t=$('#toast');t.textContent=m;t.classList.add('on');clearTimeout(t._t);t._t=setTimeout(()=>t.classList.remove('on'),2600)}
+function applyTheme(){const t=P().settings.theme||'auto';const d=t==='dark'||(t==='auto'&&matchMedia('(prefers-color-scheme: dark)').matches);document.documentElement.classList.toggle('dark',d)}
+const swBadge=s=>{if(!raw(s,'sw').length)return '<span class="b">Steckbrief folgt</span>';const k=swOf(s);const[l,c]=V.sw[k]||['?','neutral'];return `<span class="b ${c}">${k==='t'?'☠ ':''}${esc(l)}</span>`};
+const lvBadge=s=>`<span class="b lv">${V.lv[s.lv]||s.lv}</span>`;
+const protBadge=s=>{const r=req(s,'ss');return r.includes('bes')?'<span class="b prot">geschützt</span>':r.includes('ausn')?'<span class="b prot">geschützt (Eigenbedarf)</span>':''};
+function dots(id){const b=boxOf('sp',id);if(!b)return'';if(b>=6)return'<div class="dots m"><i></i><i></i><i></i><i></i><i></i></div>';let h='';for(let i=1;i<=5;i++)h+=`<i class="${i<=b?'f':''}"></i>`;return `<div class="dots">${h}</div>`}
+const colorOf=s=>V.colors[(allv(s,'hf')[0])||(allv(s,'lf')[0])]||'#a88b63';
+function art(s){const c=colorOf(s),f=allv(s,'fk')[0]||'hut',st='#efe5cf',w='#8a6a48';let g='';
+ if(f==='hut'||f==='seit')g=`<path d="M16 54Q50 10 84 54Z" fill="${c}"/><path d="M22 54h56" stroke="rgba(0,0,0,.18)" stroke-width="3"/><rect x="43" y="52" width="14" height="32" rx="6" fill="${st}"/>`;
+ else if(f==='kons')g=`<rect x="8" y="6" width="16" height="88" rx="3" fill="${w}"/><path d="M24 34Q68 26 90 46Q66 58 24 56Z" fill="${c}"/><path d="M24 60Q58 56 78 68Q56 76 24 74Z" fill="${c}" opacity=".85"/>`;
+ else if(f==='kora'||f==='kraus')g=`<g stroke="${c}" stroke-width="7" stroke-linecap="round" fill="none"><path d="M50 88V58M50 62 34 44M50 62 66 42M34 44 26 26M34 44 40 24M66 42 60 22M66 42 76 26"/></g>`;
+ else if(f==='bech')g=`<path d="M18 42Q50 92 82 42Q50 56 18 42Z" fill="${c}"/><ellipse cx="50" cy="44" rx="32" ry="8" fill="rgba(0,0,0,.15)"/>`;
+ else if(f==='kugel'||f==='knol')g=`<circle cx="50" cy="56" r="27" fill="${c}"/><g fill="rgba(255,255,255,.45)"><circle cx="40" cy="46" r="2.5"/><circle cx="54" cy="42" r="2"/><circle cx="60" cy="54" r="2.5"/><circle cx="46" cy="60" r="2"/></g>`;
+ else if(f==='stern')g=`<path d="M50 60 14 76 34 56 20 40 42 46 50 24 58 46 80 40 66 56 86 76Z" fill="${c}"/><circle cx="50" cy="52" r="12" fill="${st}"/>`;
+ else if(f==='phall')g=`<rect x="44" y="30" width="12" height="54" rx="5" fill="${st}"/><path d="M42 16h16l3 20H39Z" fill="${c}"/><ellipse cx="50" cy="86" rx="16" ry="6" fill="#ddd"/>`;
+ else if(f==='morch')g=`<ellipse cx="50" cy="40" rx="20" ry="27" fill="${c}"/><g stroke="rgba(0,0,0,.25)" stroke-width="2" fill="none"><path d="M36 26h28M32 40h36M36 54h28M44 15v50M56 15v50"/></g><rect x="43" y="64" width="14" height="22" rx="5" fill="${st}"/>`;
+ else if(f==='keul')g=`<path d="M44 86V44c0-14 12-14 12 0v42Z" fill="${c}"/><ellipse cx="50" cy="36" rx="9" ry="18" fill="${c}"/>`;
+ else if(f==='gall')g=`<path d="M30 40c0-14 30-20 38-6s10 30-6 34-34 6-34-10 2-18 2-18Z" fill="${c}" opacity=".9"/>`;
+ else g=`<g fill="${c}"><circle cx="34" cy="46" r="9"/><circle cx="56" cy="40" r="7"/><circle cx="62" cy="60" r="10"/><circle cx="42" cy="66" r="6"/></g>`;
+ return `<svg class="ph" viewBox="0 0 100 100" preserveAspectRatio="xMidYMid slice"><defs><linearGradient id="g${s.id.length}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#dfe7cf"/><stop offset="1" stop-color="#c7b48e"/></linearGradient></defs><rect width="100" height="100" fill="url(#g${s.id.length})" opacity=".55"/><path d="M0 84Q50 76 100 84V100H0Z" fill="#7d6a48" opacity=".35"/>${g}</svg>`}
+const photos=id=>PH[id]||[];
+const PHT=window.PHOTO_THUMBS||{};
+const BLANK='data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7';
+const PKB={},PKU={};
+const pkGet=p=>{if(!p.k)return Promise.resolve(p.f);const key=p.k+'#'+p.o;if(PKU[key])return Promise.resolve(PKU[key]);
+ PKB[p.k]=PKB[p.k]||fetch(p.k).then(r=>{if(!r.ok)throw new Error(r.status);return r.arrayBuffer()});
+ return PKB[p.k].then(b=>PKU[key]||(PKU[key]=URL.createObjectURL(new Blob([b.slice(p.o,p.o+p.n)],{type:'image/webp'})))).catch(e=>{delete PKB[p.k];throw e})};
+const pkLoad=im=>{const p={k:im.dataset.pk,o:+im.dataset.po,n:+im.dataset.pn};pkGet(p).then(u=>{if(im.dataset.pk===p.k&&+im.dataset.po===p.o)im.src=u}).catch(()=>{})};
+const pkIO='IntersectionObserver' in window?new IntersectionObserver(es=>{for(const e of es)if(e.isIntersecting){pkIO.unobserve(e.target);pkLoad(e.target)}},{rootMargin:'400px'}):null;
+const pkWatch=im=>pkIO?pkIO.observe(im):pkLoad(im);
+try{new MutationObserver(ms=>{for(const m of ms)for(const nd of m.addedNodes){if(nd.nodeType!==1)continue;if(nd.matches('img[data-pk]'))pkWatch(nd);nd.querySelectorAll('img[data-pk]').forEach(pkWatch)}}).observe(document.body,{childList:true,subtree:true})}catch(e){}
+const phImg=(p,alt,lazy)=>p.k?`<img src="${BLANK}" data-pk="${esc(p.k)}" data-po="${+p.o}" data-pn="${+p.n}" alt="${esc(alt)}">`:`<img${lazy?' loading="lazy"':''} src="${esc(p.f)}" alt="${esc(alt)}">`;
+const phSet=(im,p)=>{if(p.k){im.src=BLANK;im.dataset.pk=p.k;im.dataset.po=p.o;im.dataset.pn=p.n;pkLoad(im)}else{delete im.dataset.pk;im.src=p.f}};
+const thumb=s=>{const p=PHT[s.id]||photos(s.id)[0];return p?phImg(p,s.de,1):art(s)};
+/* ---------- Router ---------- */
+const view=$('#view');let cur='',listY=0;
+const HIST=[],MAINV=['arten','gattungen','vergleich','lernen','mehr'];
+const parentOf=h=>h.startsWith('art-')?'arten':h.startsWith('gattung-')?'gattungen':['quiz','fragen','duell','raten','statistik','gifte'].includes(h)?'lernen':'arten';
+function route(){const h=decodeURIComponent(location.hash.slice(1))||'arten';view.classList.remove('compact');
+ if(HIST.length>1&&HIST[HIST.length-2]===h)HIST.pop();else if(HIST[HIST.length-1]!==h)HIST.push(h);
+ const bk=$('#back');if(bk)bk.hidden=MAINV.includes(h);if(cur==='arten')listY=window.scrollY;cur=h;let m;
+ $$('#tabs a').forEach(a=>a.classList.toggle('on',h.startsWith(a.dataset.tab)||(a.dataset.tab==='arten'&&h.startsWith('art-'))||(a.dataset.tab==='gattungen'&&h.startsWith('gattung-'))||(a.dataset.tab==='lernen'&&['quiz','fragen','duell','raten','statistik','gifte'].includes(h))));
+ if((m=h.match(/^art-(.+)$/))){vArt(m[1]);window.scrollTo(0,0);return}if((m=h.match(/^gattung-(.+)$/))){vGattung(m[1]);window.scrollTo(0,0);return}
+ const r={arten:vArten,gattungen:vGattungen,vergleich:vVergleich,lernen:vLernen,mehr:vMehr,gifte:vGifte,quiz:vQuiz,fragen:vFragen,duell:vDuell,raten:vRaten,statistik:vStat}[h];
+ (r||vArten)();if(h==='arten')requestAnimationFrame(()=>window.scrollTo(0,listY));else window.scrollTo(0,0)}
+window.addEventListener('hashchange',()=>{const sh=document.getElementById('sheet');if(sh)sh.classList.remove('open');route()});
+const ACT={};ACT.back=()=>{if(HIST.length>1)history.back();else location.hash=parentOf(cur)};document.addEventListener('click',e=>{const a=e.target.closest('[data-act]');if(a&&ACT[a.dataset.act]){e.preventDefault();ACT[a.dataset.act](a,e)}});
+/* ---------- Arten-Liste & Filter ---------- */
+const F={q:'',f:{},gen:'',ls:'',sort:'de'};
+const fcount=()=>Object.values(F.f).reduce((n,s)=>n+s.size,0)+(F.gen?1:0)+(F.ls?1:0);
+function matches(s,skip){if(F.q&&!F.q.split(' ').every(t=>s._q.includes(t)))return false;if(F.gen&&s.gen!==F.gen)return false;
+ if(F.ls){const b=boxOf('sp',s.id);if(F.ls==='neu'&&b)return false;if(F.ls==='lern'&&!(b>0&&b<6))return false;if(F.ls==='gem'&&b<6)return false;if(F.ls==='due'&&!isDue('sp',s.id))return false;if(F.ls==='fav'&&!P().fav[s.id])return false}
+ for(const c in F.f){if(c===skip)continue;const set=F.f[c];if(!set.size)continue;if(c==='lv'){if(!set.has(s.lv))return false;continue}
+  const vals=fvals(s,c);if(![...set].some(v=>vals.includes(v)))return false}return true}
+const fvals=(s,c)=>c==='sw'?[swOf(s)]:c==='mo'?[...(s.mo||'')].map((x,i)=>x!=='0'?String(i+1):'').filter(Boolean):allv(s,c);
+const flab=(c,v)=>c==='lv'?V.lv[v]:c==='sw'?V.sw[v][0]:c==='mo'?'wächst im '+MN[v-1]:lab(c,v);
+function sorted(list){const k=F.sort;const L=list.slice();if(k==='sci')L.sort((a,b)=>a.sci.localeCompare(b.sci));else if(k==='gen')L.sort((a,b)=>(a.gen+a.sci).localeCompare(b.gen+b.sci));else if(k==='box')L.sort((a,b)=>boxOf('sp',a.id)-boxOf('sp',b.id));return L}
+let LIST=[],shown=0,obs;
+function vArten(){view.innerHTML=`<div class="row" style="gap:8px"><input class="inp sp" id="q" type="search" placeholder="Suche: Name, Gattung, wiss. Name …" value="${esc(F.qRaw||'')}" autocomplete="off"><button class="btn" data-act="filters">Filter${fcount()?` <span class="b lv">${fcount()}</span>`:''}</button></div>
+ <div class="chips" id="activeF" style="margin:10px 0 2px"></div>
+ <div class="row small mut" style="margin:6px 0 12px"><span id="cnt"></span><span class="sp"></span><select class="inp small" id="sort"><option value="de">Deutsch A–Z</option><option value="sci">Wissenschaftlich A–Z</option><option value="gen">nach Gattung</option><option value="box">nach Lernstand</option></select><button class="btn sm" data-act="learnSel">▶ Auswahl lernen</button></div>
+ <div class="grid" id="list"></div><div id="more" style="height:40px"></div>`;
+ $('#sort').value=F.sort;$('#sort').onchange=e=>{F.sort=e.target.value;renderList()};
+ const q=$('#q');q.oninput=()=>{F.qRaw=q.value;F.q=norm(q.value);renderList()};renderList()}
+function renderList(){LIST=sorted(SP.filter(s=>matches(s)));shown=0;$('#list').innerHTML='';$('#cnt').textContent=`${LIST.length} von ${SP.length} Arten`;
+ const af=[];if(F.gen)af.push(`<span class="chip on" data-act="rmF" data-c="gen">Gattung: ${genLabel(F.gen)} ✕</span>`);if(F.ls)af.push(`<span class="chip on" data-act="rmF" data-c="ls">${esc(LSL[F.ls])} ✕</span>`);
+ for(const c in F.f)for(const v of F.f[c])af.push(`<span class="chip on" data-act="rmF" data-c="${c}" data-v="${esc(v)}">${esc(flab(c,v))} ✕</span>`);
+ $('#activeF').innerHTML=af.join('')+(af.length?'<span class="chip" data-act="clearF">Alle löschen</span>':'');more();
+ if(obs)obs.disconnect();obs=new IntersectionObserver(e=>{if(e[0].isIntersecting)more()},{rootMargin:'600px'});obs.observe($('#more'));
+ if(!LIST.length)$('#list').innerHTML='<div class="empty" style="grid-column:1/-1">Keine Art passt zu diesen Filtern.</div>'}
+function more(){const L=$('#list');if(!L||shown>=LIST.length)return;const n=Math.min(LIST.length,shown+48);let h='';for(let i=shown;i<n;i++){const s=LIST[i];h+=`<a class="card" href="#art-${s.id}"><div class="thumb">${thumb(s)}${dots(s.id)}</div><div class="cb"><div class="de">${esc(s.de)}</div><div class="sci">${esc(s.sci)}</div><div class="badges">${lvBadge(s)}${swBadge(s)}${protBadge(s)}</div></div></a>`}L.insertAdjacentHTML('beforeend',h);shown=n}
+const LSL={neu:'noch nicht gelernt',lern:'in Lernphase',gem:'gemeistert',due:'heute fällig',fav:'Favoriten'};
+ACT.rmF=a=>{const c=a.dataset.c;if(c==='gen')F.gen='';else if(c==='ls')F.ls='';else F.f[c].delete(a.dataset.v);vArten()};
+ACT.clearF=()=>{F.f={};F.gen='';F.ls='';vArten()};
+ACT.filters=()=>openFilters();
+function openFilters(){const pan=$('#sheetPan');const g=Object.keys(GSP).sort();
+ const chipRow=(c,opts)=>`<div class="chips">${opts.map(([v,l])=>{const on=F.f[c]&&F.f[c].has(v);const n=SP.filter(s=>matches(s,c)&&(c==='lv'?s.lv===v:fvals(s,c).includes(v))).length;
+   return `<span class="chip ${on?'on':''} ${!n&&!on?'dis':''}" data-act="togF" data-c="${c}" data-v="${esc(v)}">${V.cats[c]&&V.cats[c].color?`<i class="sw" style="background:${V.colors[v]}"></i>`:''}${esc(l)} <span class="n">${n}</span></span>`}).join('')}</div>`;
+ let h=`<div class="sheethead"><h2 style="margin:0">Filter</h2><span class="sp"></span><span class="mut small" id="fcnt">${SP.filter(s=>matches(s)).length} Treffer</span><button class="btn sm" data-act="clearF2">Zurücksetzen</button><button class="btn sm pri" data-act="closeSheet">Fertig</button></div>`;
+ h+=`<details class="fg" open><summary>Liste, Speisewert & Lernstand</summary><div class="fcat">Liste</div>${chipRow('lv',Object.entries(V.lv))}<div class="fcat">Speisewert</div>${chipRow('sw',Object.entries(V.sw).map(([k,v])=>[k,v[0]]))}
+  <div class="fcat">Lernstand</div><div class="chips">${Object.entries(LSL).map(([k,l])=>`<span class="chip ${F.ls===k?'on':''}" data-act="setLs" data-v="${k}">${l}</span>`).join('')}</div>
+  <div class="fcat">Gattung</div><select class="inp" id="fgen" style="width:100%"><option value="">alle Gattungen</option>${g.map(x=>`<option value="${esc(x)}" ${F.gen===x?'selected':''}>${genLabel(x)}</option>`).join('')}</select></details>`;
+ for(const[gk,gl]of V.groups){const us=UNITS.filter(u=>V.cats[u.parts[0]].g===gk&&u.key!=='sw');if(!us.length)continue;
+  h+=`<details class="fg"><summary>${esc(gl)}</summary>${gk==='wert'?'<p class="small" style="margin:6px 0"><a href="#gifte" style="text-decoration:underline">ⓘ Was bedeuten Vergiftungssyndrome und Hinweise?</a></p>':''}${us.map(u=>`<div class="fcat">${esc(u.l)}</div>`+u.parts.map(c=>(u.parts.length>1?`<div class="subl">${esc(u.sub[c])}</div>`:'')+chipRow(c,optsOf(c))).join('')).join('')}${gk==='zeit'?`<div class="fcat">Monat – wächst im …</div>`+chipRow('mo',MN.map((m,i)=>[String(i+1),m.slice(0,3)])):''}</details>`}
+ pan.innerHTML=h;$('#sheet').classList.add('open');$('#fgen').onchange=e=>{F.gen=e.target.value;refreshF()}}
+function refreshF(){const open=$$('#sheetPan details').map(d=>d.open);const y=$('#sheetPan').scrollTop;openFilters();$$('#sheetPan details').forEach((d,i)=>d.open=open[i]);$('#sheetPan').scrollTop=y;if(cur==='arten')vArten()}
+ACT.togF=a=>{const c=a.dataset.c,v=a.dataset.v;const s=F.f[c]=F.f[c]||new Set();s.has(v)?s.delete(v):s.add(v);refreshF()};
+ACT.setLs=a=>{F.ls=F.ls===a.dataset.v?'':a.dataset.v;refreshF()};
+ACT.clearF2=()=>{F.f={};F.gen='';F.ls='';refreshF()};
+ACT.closeSheet=()=>$('#sheet').classList.remove('open');
+ACT.learnSel=()=>{const ids=SP.filter(s=>matches(s)).map(s=>s.id);if(!ids.length)return toast('Keine Arten ausgewählt');startQuiz(ids,'Auswahl ('+ids.length+')')};
+/* ---------- Steckbrief ---------- */
+const TXT=[['hut','Hut'],['fs','Fruchtschicht'],['stiel','Stiel'],['fleisch','Fleisch'],['geruch','Geruch & Geschmack'],['sporen','Sporenpulver'],['vork','Vorkommen'],['zeit','Erscheinungszeit']];
+const MN=['Januar','Februar','März','April','Mai','Juni','Juli','August','September','Oktober','November','Dezember'],MS='JFMAMJJASOND';
+const GROW=window.GROW||{};
+const ZPLAIN=/^\s*(?:(?:Januar|Februar|März|April|Mai|Juni|Juli|August|September|Oktober|November|Dezember) bis (?:Januar|Februar|März|April|Mai|Juni|Juli|August|September|Oktober|November|Dezember)|Ganzjährig)\.?\s*$/;
+function synFold(s){const ks=raw(s,'sy').filter(v=>SYN[v.replace(/^~/,'')]);if(!ks.length)return '';return ks.map(v=>{const x=v.replace(/^~/,''),d=SYN[x];return `<details class="synf"><summary><span>Was passiert bei einer Vergiftung?</span><b>${v[0]==='~'?'möglicherweise ':''}${esc(d.name)}</b></summary>${synCard(x,false)}</details>`}).join('')}
+function monSegs(mo,ch){const on=i=>ch.includes(mo[i]);const all=[0,1,2,3,4,5,6,7,8,9,10,11];if(all.every(on))return [[0,11]];
+ const st=all.find(k=>on(k)&&!on((k+11)%12));if(st===undefined)return [];const sg=[];
+ for(let n=0;n<12;n++){const k=(st+n)%12;if(!on(k))continue;const l=sg[sg.length-1];if(l&&l[1]===(k+11)%12)l[1]=k;else sg.push([k,k])}return sg}
+const monTxt=(mo,ch)=>{const sg=monSegs(mo,ch);if(sg.length===1&&sg[0][0]===0&&sg[0][1]===11)return 'ganzjährig';return sg.map(([a,b])=>a===b?MN[a]:MN[a]+' – '+MN[b]).join(', ')};
+const monOcc=s=>s.mo&&/[12]/.test(s.mo)?monTxt(s.mo,'12'):'';
+const monHs=s=>s.mo&&s.mo.includes('2')?monTxt(s.mo,'2'):'';
+const monSum=s=>{const o=monOcc(s),h=monHs(s);return o?`Vorkommen: ${o}${h?' · Hauptsaison: '+h:''}`:''};
+function monthBar(s,mini){const mo=s.mo||'';if(mo.length!==12)return '';const now=new Date().getMonth();
+ return `<div class="mbar${mini?' mini':''}" role="img" aria-label="${esc(monSum(s))}">${[...mo].map((c,i)=>`<div class="m m${c}${i===now?' now':''}" title="${MN[i]}">${mini?'':MS[i]}</div>`).join('')}</div>`}
+const ICO={gestalt:'<path d="M4 8V4h4M16 4h4v4M20 16v4h-4M8 20H4v-4"/><path d="M7.5 12.5c0-2.6 2-4.5 4.5-4.5s4.5 1.9 4.5 4.5Z"/><path d="M11 12.5V16h2v-3.5"/>',hut:'<path d="M3 13c0-4.7 4-8.5 9-8.5s9 3.8 9 8.5Z"/><path d="M10 13v6.5a2 2 0 0 0 4 0V13"/>',
+ fs:'<path d="M3 9.5c0-3 4-5.5 9-5.5s9 2.5 9 5.5Z"/><path d="M6 9.5v3M9 9.5v4.5M12 9.5v5.5M15 9.5v4.5M18 9.5v3"/>',
+ stiel:'<path d="M9.6 3h4.8l-.7 18h-3.4Z"/><path d="M6 8.5h12"/>',
+ fleisch:'<path d="M12 3.5c3.2 4.2 5.5 7.3 5.5 10.2a5.5 5.5 0 0 1-11 0c0-2.9 2.3-6 5.5-10.2Z"/>',
+ geruch:'<path d="M4 8c2.5-2.5 5 2.5 8 0s5.5 2.5 8 0M4 13c2.5-2.5 5 2.5 8 0s5.5 2.5 8 0M4 18c2.5-2.5 5 2.5 8 0s5.5 2.5 8 0"/>',
+ sporen:'<circle cx="7" cy="8" r="1.7"/><circle cx="13" cy="5.8" r="1.7"/><circle cx="17.8" cy="11" r="1.7"/><circle cx="10" cy="13.4" r="1.7"/><circle cx="15.4" cy="17.4" r="1.7"/><circle cx="7" cy="18.6" r="1.7"/>',
+ oeko:'<path d="M12 3 6 12h3.5L6 18h12l-3.5-6H18Z"/><path d="M12 18v3"/>',
+ zeit:'<rect x="3.5" y="5" width="17" height="15" rx="2.5"/><path d="M3.5 10h17M8 3v4M16 3v4"/>',
+ wert:'<path d="M7 3v7M5 3v4a2 2 0 0 0 4 0V3M7 10v11"/><path d="M17 3c-2 1-3 4-3 7h3v11"/>',
+ vw:'<path d="M5 8h13l-3.5-3.5M19 16H6l3.5 3.5"/>',
+ info:'<circle cx="12" cy="12" r="8.5"/><path d="M12 11v5.5M12 7.6v.2"/>',
+ sys:'<rect x="9" y="2.5" width="6" height="4" rx="1"/><rect x="3" y="15.5" width="6" height="4" rx="1"/><rect x="15" y="15.5" width="6" height="4" rx="1"/><path d="M12 6.5v4.5M6 15.5V11h12v4.5"/>',
+ link:'<path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1"/><path d="M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/>',
+ note:'<path d="M4 20h4L19 9l-4-4L4 16Z"/><path d="M13.5 6.5l4 4"/>'};
+const ico=k=>`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICO[k]||''}</svg>`;
+const HYT={lam:['Lamellen','Lamellen'],leist:['Leisten','Leisten'],roehr:['Röhren & Poren','Röhren'],por:['Poren','Poren'],stach:['Stacheln','Stacheln'],gleba:['Sporenmasse (Gleba)','Gleba']};
+let SPY=null;
+function vArt(id){const s=BY[id];if(SPY){SPY.disconnect();SPY=null}if(!s){view.innerHTML='<div class="empty">Art nicht gefunden.</div>';return}
+ const ph=photos(id);const k=swOf(s);const fav=P().fav[id];const c=card('sp',id);
+ let hero=ph.length?`<div class="hero" id="hero">${phImg(ph[0],s.de)}<button class="hzoom" data-act="lb" data-i="0" aria-label="Foto vergrößern"></button><div class="credit" id="cred">${credit(ph[0])}</div></div>`+(ph.length>1?`<div class="gal" aria-label="Weitere Fotos">${ph.map((p,i)=>`<button class="gt" data-act="lb" data-i="${i}" aria-label="Foto ${i+1} von ${ph.length}${p.c?': '+esc(p.c):''}">${phImg(p,s.de+' – Foto '+(i+1),1)}</button>`).join('')}</div>`:''):`<div class="hero">${art(s)}<div class="credit">Noch kein Foto – siehe Links unten</div></div>`;
+ const vw=(s.vw||[]).map(v=>{const o=v.id&&BY[v.id];return `<div class="vw"><div style="flex:1"><div class="nm">${o?`<a href="#art-${o.id}" style="text-decoration:underline">${esc(o.de)}</a> <span class="sci">${esc(o.sci)}</span> ${swBadge(o)}`:esc(v.n)}</div><div class="small">${esc(v.t||'')}</div></div></div>`}).join('');
+ const vwIds=(s.vw||[]).filter(v=>v.id&&BY[v.id]).map(v=>v.id);
+ const valsOf=c=>{const r=raw(s,c);const ord=[...r.filter(v=>v[0]!=='~'),...r.filter(v=>v[0]==='~')];return `<div class="vals">${ord.map(v=>{const o=v[0]==='~';const x=v.replace(/^~/,'');return `<span class="v${o?' o':''}"${iact(c,v)}>${V.cats[c].color?`<i class="sw" style="background:${V.colors[x]}"></i>`:''}${esc(lab(c,x))}${o?' <small>(möglich)</small>':''}</span>`}).join('')}</div>`+(c==='gs'?TW(s):'')};
+ const row=(c,l)=>raw(s,c).length&&!(c==='sy'&&req(s,c)[0]==='kein')?`<div class="trw"><div class="trl">${esc(l)}</div><div>${valsOf(c)}</div></div>`:'';
+ const ptx=(t,raw_)=>t?`<p class="ttx">${raw_?t:esc(t)}</p>`:'';
+ const tcard=(key,title,body,cls='')=>body.trim()?`<section class="tc a-${key} ${cls}" id="c-${key}"><h3 class="tch"><span class="tci">${ico(key)}</span><span>${title}</span></h3><div class="tcb">${body}</div></section>`:'';
+ const fk=allv(s,'fk'),hy=raw(s,'hy'),hy0=req(s,'hy')[0]||allv(s,'hy')[0]||'';
+ const hutT=fk.some(v=>v==='hut'||v==='seit')?'Hut':'Fruchtkörper';
+ const fsT=HYT[hy0]||['Fruchtschicht','Fruchtschicht'];
+ const showHy=!(hy.length===1&&HYT[hy0]&&hy0!=='gleba');
+ const fsL=hy0==='lam'?['Ansatz am Stiel','Besonderheiten','Farbe']:['Ansatz','Besonderheiten','Farbe'];
+ const C={};
+ const trow=(l,v)=>v?`<div class="trw"><div class="trl">${esc(l)}</div><div><div class="vals"><span class="v">${esc(v)}</span></div></div></div>`:'';
+ const ptk=k=>(s.rd||[]).includes(k)?'':ptx(s.tx[k]);
+ const gzR=s.gzx?'':s.gz?trow('Größe',s.gz):row('hg','Größe');
+ if(hutT==='Hut')C.gestalt=['Gestalt',row('fk','Gestalt')];
+ C.hut=[hutT,(hutT==='Hut'?'':row('fk','Gestalt'))+gzR+row('hz','Form')+row('hf','Farbe')+row('ho','Oberfläche')+ptk('hut')];
+ C.fs=[fsT[0],(showHy?row('hy','Typ'):'')+row('la',fsL[0])+row('lm',fsL[1])+row('lf',fsL[2])+ptk('fs')];
+ C.stiel=['Stiel & Velum',trow('Länge',s.sl)+trow('Dicke',s.sd)+row('sf','Farbe')+row('st','Oberfläche / Bekleidung')+row('nf','Farbe der Bekleidung')+row('ve','Velum / Hüllreste')+ptk('stiel')];
+ C.fleisch=['Fleisch',trow('Farbe',s.ff)+row('fv','Verfärbung bei Verletzung')+row('mi','Milch / Saft')+row('ko','Konsistenz')+ptk('fleisch')];
+ C.geruch=['Geruch & Geschmack',row('ge','Geruch')+row('gs','Geschmack')+ptk('geruch')+(s.tw&&!raw(s,'gs').length?TW(s):'')];
+ C.sporen=['Sporenpulver',row('sp','Farbe')+ptk('sporen')];
+ C.oeko=['Vorkommen',row('er','Ernährung')+row('su','Substrat')+row('pa','Partner / Wirt')+row('hb','Lebensraum')+row('bo','Boden')+ptk('vork')];
+ const occ=monOcc(s),hs=monHs(s);
+ C.zeit=['Saison',(occ?`${monthBar(s)}<div class="mleg"><span><i class="k2"></i>Hauptsaison</span><span><i class="k1"></i>Vorkommen</span><span><i class="kn"></i>aktueller Monat</span></div>
+  <div class="mtx"><div><b>Vorkommen:</b> ${esc(occ)}</div><div><b>Hauptsaison:</b> ${hs?esc(hs):'keine ausgeprägte'} <span class="tiny mut">(Richtwert)</span></div></div>`:'')+(ZPLAIN.test(s.tx.zeit||'')?'':ptx(s.tx.zeit))+row('sz','Jahreszeit')+
+  (GROW[s.gw]?`<div class="grow"><b>Was das Wachstum fördert oder beendet</b> <span class="tiny mut">(Faustregel)</span><p>${esc(GROW[s.gw])}</p>${s.gx?`<p>${esc(s.gx)}</p>`:''}</div>`:'')];
+ C.wert=['Speisewert & Verträglichkeit',row('sw','Speisewert')+row('ss','Schutzstatus')+(s.tx.speise?ptx(linkSyn(esc(s.tx.speise)),1):'')+vtBox(s)+(s.tx.gift?`<h4 class="tsub">Giftigkeit</h4>${ptx(linkSyn(esc(s.tx.gift)),1)}`:'')+synFold(s)+(s.tx.schutz?`<h4 class="tsub">Schutz</h4>${ptx(s.tx.schutz)}`:'')];
+ C.vw=['Verwechslungsgefahr',vw?`${vwIds.length?`<div class="row" style="margin:6px 0 2px"><button class="btn sm" data-act="cmpWith" data-id="${id}">⇄ Alle vergleichen</button></div>`:''}${vw}`:''];
+ C.info=['Wissenswertes',ptx(s.tx.info)];
+ const swc=(V.sw[k]||[])[1]||'neutral';
+ const q=encodeURIComponent(s.sci);const qd=encodeURIComponent(s.de);
+ const cmp_=P().settings.sbMode==='compact';
+ const SECT=[['Erscheinungsbild',['gestalt','hut','fs','stiel','fleisch','geruch','sporen']],['Vorkommen & Saison',['oeko','zeit']],['Speisewert & Verwechslung',['wert','vw','info']]];
+ const NAVL={gestalt:'Gestalt',hut:hutT,fs:fsT[1],stiel:'Stiel',fleisch:'Fleisch',geruch:'Geruch & Geschmack',sporen:'Sporen',oeko:'Vorkommen',zeit:'Saison',wert:'Speisewert',vw:'Verwechslung',info:'Wissenswertes'};
+ const has=key=>C[key]&&C[key][1].trim();
+ const nav=[...SECT.flatMap(x=>x[1]).filter(has),'note'].map(key=>`<button class="a-${key} ${key==='wert'?swc:''}" data-act="jump" data-t="${key}"><i></i>${esc(NAVL[key]||'Notizen')}</button>`).join('');
+ const body=SECT.map(([t,keys])=>{const cs=keys.filter(has);return cs.length?`<h2 class="shd">${esc(t)}</h2><div class="tgrid">${cs.map(key=>tcard(key,esc(C[key][0]),C[key][1],key==='wert'?swc:'')).join('')}</div>`:''}).join('');
+ view.innerHTML=`${hero}<div class="head"><div class="badges">${lvBadge(s)}${swBadge(s)}${protBadge(s)}${vtBadges(s)}${c&&c.b?`<span class="b">${c.b>=6?'gemeistert':'Fach '+c.b}</span>`:''}</div><h1>${esc(s.de)}</h1><div class="sci">${esc(s.sci)}${s.au?` <span class="mut" style="font-style:normal">${esc(s.au)}</span>`:''}</div>${(s.alt||[]).length||(s.syn||[]).length?`<div class="alt">${(s.alt||[]).length?'auch: '+s.alt.map(esc).join(', '):''}${(s.syn||[]).length?((s.alt||[]).length?' · ':'')+'Syn.: '+s.syn.map(x=>`<i>${esc(x)}</i>`).join(', '):''}</div>`:''}</div>
+ <div class="row" style="margin:10px 0"><button class="btn sm" data-act="fav" data-id="${id}">${fav?'★ Favorit':'☆ Favorit'}</button><button class="btn sm" data-act="cmpWith" data-id="${id}">⇄ Vergleichen${vwIds.length?' mit Doppelgängern':''}</button><button class="btn sm pri" data-act="learnOne" data-id="${id}">▶ Abfragen</button></div>
+ ${!raw(s,'sw').length?`<div class="warnbox g">Für diese Art ist der ausführliche Steckbrief noch in Arbeit.</div>`:''}${k==='t'?`<div class="warnbox t">☠ <div>Tödlich giftig${req(s,'sy').filter(x=>x!=='kein').length?' – '+req(s,'sy').map(x=>esc(lab('sy',x))).join(', '):''}</div></div>`:k==='g'?`<div class="warnbox g">⚠ <div>Giftig – nicht essen.</div></div>`:''}
+ ${s.tx.merke?`<div class="kenn"><b>Auf einen Blick – die wichtigsten Erkennungsmerkmale:</b><br>${esc(s.tx.merke)}</div>`:''}
+ <nav class="jn" id="jn" aria-label="Abschnitte">${nav}</nav>
+ <div class="sbbar"><p class="tiny mut sp" style="margin:0">Die Merkmale entsprechen den Lösungen der Abfrage; grau = möglich, aber nicht immer.</p><div class="seg" role="group" aria-label="Ansicht"><button class="${cmp_?'':'on'}" data-act="sbMode" data-m="full">Ausführlich</button><button class="${cmp_?'on':''}" data-act="sbMode" data-m="compact">Kompakt</button></div></div>
+ ${body}
+ <h2 class="shd">Mehr</h2><div class="tgrid">
+ ${tcard('sys','Systematik',`<p class="ttx"><a href="#gattung-${esc(s.gen.toLowerCase())}" style="text-decoration:underline">Gattung ${genLabel(s.gen)}</a> · Familie ${esc(s.fam||'–')}${s.ord?' · Ordnung '+esc(s.ord):''} · ${esc(V.cls[s.cls]||'')}</p>`)}
+ ${tcard('link','Weitere Fotos & Beschreibungen',`<div class="row" style="margin-top:8px"><a class="btn sm" target="_blank" rel="noopener" href="https://www.google.com/search?q=site%3Apilzbuch-pilzwelten.de+${q}">Pilzbuch Pilzwelten</a><a class="btn sm" target="_blank" rel="noopener" href="https://www.google.com/search?q=site%3Apilzcheck.eu+${qd}">pilzcheck.eu</a><a class="btn sm" target="_blank" rel="noopener" href="https://www.google.com/search?q=site%3A123pilze.de+${q}">123pilze</a><a class="btn sm" target="_blank" rel="noopener" href="https://www.inaturalist.org/taxa/search?q=${q}">iNaturalist-Fotos</a><a class="btn sm" target="_blank" rel="noopener" href="https://de.wikipedia.org/w/index.php?search=${q}">Wikipedia</a><a class="btn sm" target="_blank" rel="noopener" href="https://www.google.com/search?tbm=isch&q=${q}">Bildersuche</a></div>`)}
+ ${tcard('note','Meine Notizen',`<textarea class="inp" id="note" style="margin-top:8px" placeholder="Eigene Beobachtungen, Fundorte, Eselsbrücken …">${esc(P().notes[id]||'')}</textarea>`)}
+ </div>
+ <p class="tiny mut c">Lernhilfe – kein Ersatz für die Pilzberatung durch geprüfte Pilzsachverständige.</p>`;
+ view.classList.toggle('compact',cmp_);
+ const n=$('#note');n.oninput=()=>{clearTimeout(n._t);n._t=setTimeout(()=>{P().notes[id]=n.value;save()},400)};
+ setHH();const jn=$('#jn');
+ if('IntersectionObserver' in window){const vis=new Set();const cards=$$('.tc[id^="c-"]',view);
+  SPY=new IntersectionObserver(es=>{es.forEach(e=>e.isIntersecting?vis.add(e.target.id):vis.delete(e.target.id));const f=cards.find(el=>vis.has(el.id));if(!f)return;const key=f.id.slice(2);
+   $$('button',jn).forEach(b=>{const on=b.dataset.t===key;if(on&&!b.classList.contains('on'))jn.scrollTo({left:b.offsetLeft-jn.clientWidth/2+b.clientWidth/2,behavior:'smooth'});b.classList.toggle('on',on)})},
+   {rootMargin:`-${(parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--hh'))||56)+56}px 0px -50% 0px`});
+  cards.forEach(el=>SPY.observe(el))}}
+function setHH(){const t=$('.top');if(t)document.documentElement.style.setProperty('--hh',Math.round(t.getBoundingClientRect().height)+'px')}
+window.addEventListener('resize',()=>setHH());
+ACT.sbMode=a=>{P().settings.sbMode=a.dataset.m;save();const c=a.dataset.m==='compact';view.classList.toggle('compact',c);$$('.sbbar .seg button',view).forEach(b=>b.classList.toggle('on',b.dataset.m===a.dataset.m))};
+ACT.jump=a=>{const el=$('#c-'+a.dataset.t);if(el)el.scrollIntoView({behavior:'smooth',block:'start'})};
+const credit=p=>`Foto: ${esc(p.a||'')}${p.l?' · '+esc(p.l):''}${p.u?` · <a href="${esc(p.u)}" target="_blank" rel="noopener">Quelle</a>`:''}`;
+let LB=null;
+const lbClose=()=>{const d=document.getElementById('lb');if(d)d.remove();document.body.classList.remove('lbopen');LB=null};
+const lbRender=()=>{const d=document.getElementById('lb');if(!d||!LB)return;const ph=photos(LB.id),p=ph[LB.i],s=BY[LB.id]||{de:''};
+ d.innerHTML=`<div class="lbt"><span>${LB.i+1} / ${ph.length}</span><span class="lbnm">${esc(s.de)}</span><button class="lbx" data-act="lbClose" aria-label="Schließen">✕</button></div><div class="lbm">${phImg(p,s.de+' – Foto '+(LB.i+1))}${ph.length>1?'<button class="lbn l" data-act="lbNav" data-d="-1" aria-label="Vorheriges Foto">‹</button><button class="lbn r" data-act="lbNav" data-d="1" aria-label="Nächstes Foto">›</button>':''}</div><div class="lbc">${p.c?`<p class="lbcap">${esc(p.c)}</p>`:''}<p class="lbcr">${credit(p)}</p></div>`};
+const lbOpen=(id,i)=>{const ph=photos(id);if(!ph.length)return;let d=document.getElementById('lb');
+ if(!d){d=document.createElement('div');d.id='lb';d.setAttribute('role','dialog');d.setAttribute('aria-modal','true');d.setAttribute('aria-label','Fotos');document.body.appendChild(d);
+  d.addEventListener('click',e=>{if(e.target===d||e.target.classList.contains('lbm'))ACT.lbClose()});
+  let x0=null;d.addEventListener('touchstart',e=>{x0=e.touches[0].clientX},{passive:true});d.addEventListener('touchend',e=>{if(x0===null||!LB)return;const dx=e.changedTouches[0].clientX-x0;x0=null;if(Math.abs(dx)>45)ACT.lbNav({dataset:{d:dx<0?1:-1}})},{passive:true})}
+ if(!LB)try{history.pushState({lb:1},'',location.href)}catch(e){}
+ LB={id,i:Math.max(0,Math.min(i,ph.length-1))};document.body.classList.add('lbopen');lbRender()};
+ACT.lb=a=>lbOpen(cur.slice(4),+a.dataset.i);
+ACT.lbNav=a=>{if(!LB)return;const n=photos(LB.id).length;LB.i=(LB.i+ +a.dataset.d+n)%n;lbRender()};
+ACT.lbClose=()=>{if(!LB)return;if(history.state&&history.state.lb)history.back();else lbClose()};
+window.addEventListener('popstate',()=>{if(LB)lbClose()});
+document.addEventListener('keydown',e=>{if(!LB)return;if(e.key==='Escape')ACT.lbClose();else if(e.key==='ArrowLeft')ACT.lbNav({dataset:{d:-1}});else if(e.key==='ArrowRight')ACT.lbNav({dataset:{d:1}})});
+ACT.fav=a=>{const id=a.dataset.id;P().fav[id]=!P().fav[id];if(!P().fav[id])delete P().fav[id];save();vArt(id)};
+ACT.learnOne=a=>startQuiz([a.dataset.id],BY[a.dataset.id].de,true);
+ACT.cmpWith=a=>{const s=BY[a.dataset.id];const ids=[s.id,...(s.vw||[]).filter(v=>v.id&&BY[v.id]).map(v=>v.id)];P().cmp=[...new Set(ids)].slice(0,4);save();location.hash='vergleich'};
+/* ---------- Gattungen ---------- */
+function vGattungen(){const names=[...new Set([...Object.keys(GSP),...GE.map(g=>g.name)])].sort((a,b)=>a.localeCompare(b));
+ view.innerHTML=`<h1>Gattungen</h1><p class="mut small">Gattungsporträts mit Kennzeichen, Sporenpulver, Ökologie und Speisewert. <b>★</b> = Gattung der DGfM-Liste „Gattungskenntnisse“.</p><input class="inp" id="gq" placeholder="Gattung suchen (lateinisch oder deutsch) …" style="margin:10px 0"><div class="glist" id="gl"></div>`;
+ const draw=()=>{const q=norm($('#gq').value);$('#gl').innerHTML=names.filter(n=>!q||norm(n+' '+gdeOf(n)).includes(q)).map(n=>{const g=GBY[n.toLowerCase()];return `<a href="#gattung-${esc(n.toLowerCase())}"><span><b>${g&&g.dgfm?'★ ':''}<i>${esc(n)}</i></b> ${gdeOf(n)?`<span class="mut">– ${esc(gdeOf(n))}</span>`:''}</span><span class="b">${(GSP[n]||[]).length} Arten</span></a>`}).join('')};
+ $('#gq').oninput=draw;draw()}
+function vGattung(gid){const g=GBY[gid];const name=g?g.name:Object.keys(GSP).find(n=>n.toLowerCase()===gid)||gid;const ids=(GSP[name]||[]).slice();(g&&g.incl||[]).forEach(x=>(GSP[x]||[]).forEach(i=>ids.includes(i)||ids.push(i)));
+ const sec=(l,t)=>t?`<dt>${l}</dt><dd>${esc(t)}</dd>`:'';
+ view.innerHTML=`<p class="small"><a href="#gattungen">← Alle Gattungen</a></p><h1><i>${esc(name)}</i></h1>${(()=>{const fam=(g&&g.fam)||((BY[(GSP[name]||[])[0]]||{}).fam)||'';const de=gdeOf(name);return de||fam?`<div class="alt">${de?'<b>'+esc(de)+'</b>':''}${fam?(de?' · ':'')+'Familie '+esc(fam):''}${g&&g.dgfm?' · <b>DGfM-Gattungsliste</b>':''}</div>`:''})()}
+ ${g?`${g.merke?`<div class="kenn"><b>Auf einen Blick:</b> ${esc(g.merke)}</div>`:''}<div class="sec"><dl>${sec('Merkmale',g.mk)}${sec('Sporenpulver',g.sp)}${sec('Ökologie',g.oeko)}${sec('Speisewert',g.speise)}${sec('Giftigkeit',g.gift)}${sec('Abgrenzung',g.abgr)}${sec('Wichtige Arten',g.arten)}${sec('Prüfungstipp',g.tipp)}</dl></div>`:'<div class="sec mut">Für diese Gattung gibt es noch kein ausführliches Porträt.</div>'}
+ <div class="row" style="margin:14px 0 6px"><h2 class="sp" style="margin:0">Arten in der App (${ids.length})</h2>${ids.length?`<button class="btn sm pri" data-act="learnGen" data-g="${esc(name)}">▶ Gattung lernen</button>`:''}</div>
+ <div class="grid">${ids.map(i=>BY[i]).map(s=>`<a class="card" href="#art-${s.id}"><div class="thumb">${thumb(s)}${dots(s.id)}</div><div class="cb"><div class="de">${esc(s.de)}</div><div class="sci">${esc(s.sci)}</div><div class="badges">${lvBadge(s)}${swBadge(s)}</div></div></a>`).join('')}</div>`;
+ ACT.learnGen=()=>startQuiz(ids,'Gattung '+name+(gdeOf(name)?' ('+gdeOf(name)+')':''))}
+/* ---------- Vergleich ---------- */
+let CMPMODE='diff';
+function vVergleich(){const ids=(P().cmp||[]).filter(i=>BY[i]);const S=ids.map(i=>BY[i]);const multi=S.length>1;
+ let h=`<h1>Vergleich</h1><p class="mut small">Bis zu 4 Arten nebeneinander.${multi?' <span class="chip diff" style="padding:1px 8px">gelb</span> = unterscheidet die Arten · <span class="chip same" style="padding:1px 8px">blass</span> = bei allen gleich.':''}</p>
+ <div class="rel" style="margin:10px 0"><input class="inp" id="cq" placeholder="Art hinzufügen …" ${ids.length>=4?'disabled':''} autocomplete="off"><div class="sugg" id="cs" hidden></div></div>
+ <div class="chips">${S.map(s=>`<span class="chip on" data-act="cmpRm" data-id="${s.id}">${esc(s.de)} ✕</span>`).join('')}${S.length?'<span class="chip" data-act="cmpClear">Leeren</span>':''}</div>`;
+ if(S.length){const sugg=[...new Set(S.flatMap(s=>(s.vw||[]).filter(v=>v.id&&BY[v.id]&&!ids.includes(v.id)).map(v=>v.id)))].slice(0,10);
+  if(sugg.length&&ids.length<4)h+=`<div class="fcat">Typische Verwechslungspartner hinzufügen</div><div class="chips">${sugg.map(i=>`<span class="chip" data-act="cmpAdd" data-id="${i}">+ ${esc(BY[i].de)}</span>`).join('')}</div>`}
+ if(!S.length){view.innerHTML=h+`<div class="empty">Füge Arten hinzu – oder öffne einen Steckbrief und tippe auf „Vergleichen“.</div>`;bindCmp(ids);return}
+ const row=(l,f,cls='')=>`<tr class="${cls}"><td>${l}</td>${S.map(s=>`<td>${f(s)}</td>`).join('')}</tr>`;
+ const head=row('Bild',s=>`<a href="#art-${s.id}"><div class="thumb" style="border-radius:12px">${thumb(s)}</div></a>`)+row('Art',s=>`<b>${esc(s.de)}</b><br><i class="mut">${esc(s.sci)}</i><div class="badges">${swBadge(s)}${protBadge(s)}</div>`);
+ const usedU=UNITS.map(u=>({...u,ps:u.parts.filter(c=>S.some(s=>raw(s,c).length)&&!(c==='sy'&&S.every(s=>req(s,'sy')[0]==='kein')))})).filter(u=>u.ps.length);
+ const sets={};usedU.forEach(u=>u.ps.forEach(c=>sets[c]=S.map(s=>allv(s,c))));
+ const isSame=c=>multi&&sets[c].every(st=>st.length&&st.length===sets[c][0].length&&st.every(v=>sets[c][0].includes(v)));
+ const uSame=u=>u.ps.every(isSame);
+ const diffC=usedU.filter(u=>!uSame(u)),sameC=usedU.filter(uSame);
+ const chip=(c,v,cls)=>`<span class="chip ${cls}" style="margin:2px"${iact(c,v)}>${V.cats[c].color?`<i class="sw" style="background:${V.colors[v.replace(/^~/,'')]}"></i>`:''}${esc(lab(c,v.replace(/^~/,'')))}${v[0]==='~'?' <span class="n">(möglich)</span>':''}</span>`;
+ const cell=(s,c)=>{const r=raw(s,c);if(!r.length)return '<span class="mut small">keine Angabe</span>';
+  const sorted=r.slice().sort((a,b)=>{const sa=sets[c].every(st=>st.includes(a.replace(/^~/,''))),sb=sets[c].every(st=>st.includes(b.replace(/^~/,'')));return sa-sb});
+  return sorted.map(v=>{const x=v.replace(/^~/,'');const shared=sets[c].every(st=>st.includes(x));return chip(c,v,multi?(shared?'same':'diff'):'')}).join('')+(c==='gs'?TW(s):'')};
+ const ucell=(s,u)=>u.parts.length>1?u.ps.map(c=>`<div class="subl">${esc(u.sub[c])}</div>${cell(s,c)}`).join(''):cell(s,u.ps[0]);
+ const kenn=row('Wichtigste Merkmale (Kurzfassung)',s=>esc(s.tx.merke||'–'))+row('Saison',s=>monthBar(s,true)+`<div class="tiny mut" style="margin-top:3px">${esc(monSum(s))}</div>`);
+ if(multi){
+  h+=`<div class="row" style="margin:14px 0 4px"><h2 class="sp" style="margin:0">Unterscheidende Merkmale <span class="mut small">(${diffC.length})</span></h2><div class="seg"><button class="${CMPMODE==='diff'?'on':''}" data-act="cmpMode" data-m="diff">Nur Unterschiede</button><button class="${CMPMODE==='all'?'on':''}" data-act="cmpMode" data-m="all">Alles</button></div></div>`;
+  let rows=head+kenn+diffC.map(u=>row(esc(u.l),s=>ucell(s,u))).join('');
+  if(CMPMODE==='all'&&sameC.length)rows+=`<tr><td colspan="${S.length+1}" class="sepcell">Bei allen gleich (${sameC.length})</td></tr>`+sameC.map(u=>row(esc(u.l),s=>ucell(s,u),'samerow')).join('');
+  h+=`<div class="tbl"><table>${rows}</table></div>`;
+  const hints=[];for(let i=0;i<S.length;i++)for(let j=i+1;j<S.length;j++){const p=PAIRS[[S[i].id,S[j].id].sort().join('|')];if(p)p.h.forEach(x=>hints.push(`<p><b>${esc(BY[x.from].de)} ↔ ${esc(BY[x.to].de)}:</b> ${esc(x.t)}</p>`))}
+  if(hints.length)h+=`<div class="sec"><h3>So unterscheidest du sie</h3>${hints.join('')}</div>`;
+  if(CMPMODE==='diff'&&sameC.length)h+=`<details class="sec"><summary><b>Gemeinsame Merkmale (${sameC.length})</b> <span class="mut small">– bei allen gleich, helfen bei der Unterscheidung nicht</span></summary><div style="margin-top:8px">${sameC.map(u=>`<div class="samel"><span class="mut">${esc(u.l)}</span><span>${u.ps.map(c=>(u.parts.length>1?esc(u.sub[c])+': ':'')+sets[c][0].map(v=>esc(lab(c,v))).join(', ')).join(' · ')}</span></div>`).join('')}</div></details>`;
+ }else h+=`<div class="tbl"><table>${head+kenn+usedU.map(u=>row(esc(u.l),s=>ucell(s,u))).join('')}</table></div>`;
+ h+=`<details class="sec" ${CMPMODE==='all'||!multi?'open':''}><summary><b>Beschreibungen im Vergleich</b></summary><div class="tbl"><table>${TXT.map(([k,l])=>row(l,s=>esc(s.tx[k]||'–')+(k==='geruch'?TW(s):''))).join('')}${row('Speisewert',s=>esc(s.tx.speise||'–'))}${row('Giftigkeit',s=>esc(s.tx.gift||'–'))}</table></div></details>`;
+ view.innerHTML=h;bindCmp(ids)}
+function bindCmp(ids){const q=$('#cq'),sg=$('#cs');if(!q)return;
+ q.oninput=()=>{const t=norm(q.value);if(t.length<2){sg.hidden=true;return}const r=SP.filter(s=>!ids.includes(s.id)&&t.split(' ').every(w=>s._q.includes(w))).slice(0,12);sg.innerHTML=r.map(s=>`<a href="#" data-act="cmpAdd" data-id="${s.id}"><b>${esc(s.de)}</b> <i class="mut">${esc(s.sci)}</i></a>`).join('')||'<a class="mut">Keine Treffer</a>';sg.hidden=false}}
+ACT.syn=a=>{const k=a.dataset.k;if(!SYN[k])return;openSheet(synCard(k,true)+`<h3>Arten in dieser App</h3>${spLinks(synIds(k))}<div class="row" style="margin-top:12px"><a class="btn" href="#gifte">Alle Syndrome &amp; Erste Hilfe ›</a></div>`)};
+ACT.vt=a=>{const k=a.dataset.k,d=VTD[k];if(!d)return;openSheet(`<div class="syn"><div class="synh"><b>${esc(d.name)}</b></div><p style="margin:6px 0 0">${esc(d.text)}</p></div><h3>Arten in dieser App</h3>${spLinks(SP.filter(s=>allv(s,'vt').includes(k)))}<div class="row" style="margin-top:12px"><a class="btn" href="#gifte">Alle Hinweise &amp; Syndrome ›</a></div>`)};
+const SHORTL=['gastro','musc','panth','psilo','copr','paxi','omph','scler','haemo'],LONGL=['phal','orel','gyro','rhabd','prox','morch','polyp','acro','enzeph'];
+function vGifte(){const sec=k=>{const d=SYN[k];if(!d)return '';const g=GEF[d.gefahr]||GEF.g;const l=synIds(k);return `<details class="sec synsec"><summary><div class="synh"><b>${esc(d.name)}</b><span class="b ${g[1]}">${g[0]}</span></div><div class="small mut">${esc(d.kurz||'')} · Latenz: ${esc(String(d.latenz||'').split('.')[0])}</div></summary>${synCard(k,true)}<h4 style="margin:10px 0 4px">Arten in dieser App (${l.length})</h4>${spLinks(l)}</details>`};
+ const other=Object.keys(SYN).filter(k=>!SHORTL.includes(k)&&!LONGL.includes(k));
+ view.innerHTML=`<h1>Vergiftungen</h1><p class="mut small">Pilzvergiftungen werden nach <b>Syndromen</b> eingeteilt – dem typischen Krankheitsbild eines Giftes. Der wichtigste Hinweis ist die <b>Latenzzeit</b> zwischen Mahlzeit und ersten Beschwerden. Tippe ein Syndrom an, um alle Einzelheiten zu sehen.</p>
+ ${INFO.hilfe?`<div class="panel help"><h3 style="margin-top:0">🚑 ${esc(INFO.hilfe.name)}</h3>${ulist(INFO.hilfe.text)}</div>`:''}
+ <h2>Kurze Latenz <span class="mut small">(meist unter 4 Stunden)</span></h2>${SHORTL.map(sec).join('')}
+ <h2>Lange Latenz <span class="mut small">(ab etwa 6 Stunden bis Wochen) – meist gefährlicher</span></h2>${LONGL.map(sec).join('')}
+ <h2>Weitere</h2>${other.map(sec).join('')}
+ <h2>Hinweise zur Verträglichkeit</h2>${Object.entries(VTD).map(([k,d])=>{const l=SP.filter(s=>allv(s,'vt').includes(k));return `<details class="sec synsec"><summary><b>${esc(d.name)}</b> <span class="mut small">(${l.length} Arten)</span></summary><p>${esc(d.text)}</p>${spLinks(l)}</details>`}).join('')}`}
+ACT.cmpMode=a=>{CMPMODE=a.dataset.m;vVergleich()};
+ACT.cmpAdd=a=>{const c=P().cmp=P().cmp||[];if(c.length>=4)return toast('Maximal 4 Arten');if(!c.includes(a.dataset.id))c.push(a.dataset.id);save();vVergleich()};
+ACT.cmpRm=a=>{P().cmp=P().cmp.filter(i=>i!==a.dataset.id);save();vVergleich()};ACT.cmpClear=()=>{P().cmp=[];save();vVergleich()};
+/* ---------- Lernen ---------- */
+const DECKS={all:['Alle Arten',s=>true],'1':['FM1-Liste (200)',s=>s.lv==='1'],'2':['FM2-Liste',s=>s.lv==='2'],P:['PSV-Prüfungsarten',s=>s.lv==='P'],gift:['Giftpilze',s=>['g','t'].includes(swOf(s))],tod:['Tödlich giftige',s=>swOf(s)==='t'],speise:['Speisepilze',s=>['e','eg'].includes(swOf(s))],fav:['Favoriten',s=>!!P().fav[s.id]]};
+const hasData=s=>raw(s,'fk').length>0;
+const deckIds=k=>SP.filter(s=>hasData(s)&&(DECKS[k]?DECKS[k][1](s):true)).map(s=>s.id);
+const stat=(deck,ids)=>{const t=today();let n=0,l=0,m=0,d=0;ids.forEach(i=>{const b=boxOf(deck,i);if(!b)n++;else if(b>=6)m++;else l++;if(isDue(deck,i,t))d++});return{n,l,m,d,t:ids.length}};
+const qIds=t=>QS.filter(q=>t==='all'||q.t===t).map(q=>String(q.n));
+function vLernen(){const st=P().settings;const sIds=deckIds(st.spDeck);const ss=stat('sp',sIds);const qi=qIds(st.qTopic);const qs=stat('q',qi);const pk=Object.keys(PAIRS);const ds_=stat('du',pk);
+ view.innerHTML=`<h1>Lernen</h1><p class="mut small">Leitner-Kartei: Richtig → ein Fach höher (Wiederholung nach 1, 3, 7, 14, 30 Tagen). Falsch → zurück in Fach 1. Nach Fach 5 gilt eine Karte als <b>gemeistert</b>.</p>
+ <div class="hubgrid">
+ <div class="hub"><div class="row"><div class="ic">🍄</div><h3 class="sp" style="margin:0">Merkmals-Abfrage</h3></div><div class="small mut">Pilzname wird genannt – du wählst alle Merkmale aus. Nur wenn alles stimmt, steigt die Art auf.</div>
+  <select class="inp" id="dk" style="width:100%">${Object.entries(DECKS).map(([k,v])=>`<option value="${k}" ${st.spDeck===k?'selected':''}>${v[0]}</option>`).join('')}</select>
+  <div class="small">${ss.d} fällig · ${ss.n} neu · ${ss.l} in Lernphase · ${ss.m} gemeistert</div><button class="btn pri big" data-act="startSp">▶ Starten</button></div>
+ <div class="hub"><div class="row"><div class="ic">📝</div><h3 class="sp" style="margin:0">Prüfungsfragen</h3></div><div class="small mut">${QS.length} Fragen der schriftlichen PSV-Prüfung mit Musterantworten. Du bewertest dich selbst.</div>
+  <select class="inp" id="qt" style="width:100%"><option value="all">Alle Themen</option>${V.qtopics.map(([k,l])=>`<option value="${k}" ${st.qTopic===k?'selected':''}>${l} (${QS.filter(q=>q.t===k).length})</option>`).join('')}</select>
+  <div class="small">${qs.d} fällig · ${qs.n} neu · ${qs.l} in Lernphase · ${qs.m} gemeistert</div><button class="btn pri big" data-act="startQ" ${QS.length?'':'disabled'}>▶ Starten</button></div>
+ <div class="hub"><div class="row"><div class="ic">⚔️</div><h3 class="sp" style="margin:0">Doppelgänger-Duell</h3></div><div class="small mut">Zwei Verwechslungspartner – nenne die Unterschiede, dann aufdecken und selbst bewerten.</div><div class="small">${pk.length} Paare · ${ds_.d} fällig · ${ds_.m} gemeistert</div><button class="btn pri big" data-act="startDu" ${pk.length?'':'disabled'}>▶ Starten</button></div>
+ <div class="hub"><div class="row"><div class="ic">🔎</div><h3 class="sp" style="margin:0">Wer bin ich?</h3></div><div class="small mut">Kennzeichen werden beschrieben – erkenne die Art (wie in der praktischen Prüfung). Nutzt die gewählte Arten-Auswahl.</div><button class="btn pri big" data-act="startRaten">▶ Starten</button></div>
+ <div class="hub"><div class="row"><div class="ic">☠️</div><h3 class="sp" style="margin:0">Vergiftungen</h3></div><div class="small mut">Alle Vergiftungssyndrome mit Latenz, Symptomen, Verlauf und typischen Arten – dazu Erste Hilfe und Verträglichkeits-Hinweise.</div><a class="btn big" href="#gifte">Nachschlagen</a></div>
+ <div class="hub"><div class="row"><div class="ic">📊</div><h3 class="sp" style="margin:0">Statistik</h3></div><div class="small mut">Fächerverteilung und Fortschritt.</div><a class="btn big" href="#statistik">Ansehen</a></div>
+ </div><p class="small mut" style="margin-top:14px">Neue Karten pro Tag: ${st.newPerDay} · Kartenzahl pro Runde: ${st.session} · ändern unter <a href="#mehr" style="text-decoration:underline">Profil</a>.</p>`;
+ $('#dk').onchange=e=>{st.spDeck=e.target.value;save();vLernen()};$('#qt').onchange=e=>{st.qTopic=e.target.value;save();vLernen()}}
+function queue(deck,ids,orderNew){const t=today();const due=shuffle(ids.filter(i=>isDue(deck,i,t)));let fresh=ids.filter(i=>!boxOf(deck,i));if(orderNew!=='seq')shuffle(fresh);const nn=Math.max(0,P().settings.newPerDay-newToday(deck));return[...due,...fresh.slice(0,nn)].slice(0,P().settings.session)}
+let S=null;
+ACT.startSp=()=>{const ids=deckIds(P().settings.spDeck);startQuiz(ids,DECKS[P().settings.spDeck][0])};
+function startQuiz(ids,title,force){ids=ids.filter(i=>hasData(BY[i]));if(!ids.length)return toast('Für diese Auswahl gibt es noch keine fertigen Steckbriefe');let q=force?ids.slice():queue('sp',ids);if(!q.length){const later=ids.filter(i=>boxOf('sp',i)>0).sort((a,b)=>card('sp',a).d.localeCompare(card('sp',b).d));if(!later.length)return toast('Keine Arten in dieser Auswahl');
+  if(!confirmBox(`Heute ist nichts fällig und das Tageslimit für neue Karten ist erreicht. Trotzdem ${Math.min(10,later.length)} Karten vorziehen?`,()=>{S={kind:'sp',title,q:later.slice(0,10),i:0,ok:0,done:0,re:new Set()};location.hash='quiz';vQuiz()}))return;return}
+ S={kind:'sp',title,q,i:0,ok:0,done:0,re:new Set()};if(location.hash!=='#quiz')location.hash='quiz';else vQuiz()}
+function confirmBox(msg,yes){const pan=$('#sheetPan');pan.innerHTML=`<h3>${esc(msg)}</h3><div class="row" style="margin-top:12px"><button class="btn" data-act="closeSheet">Abbrechen</button><button class="btn pri" id="cy">Ja</button></div>`;$('#sheet').classList.add('open');$('#cy').onclick=()=>{$('#sheet').classList.remove('open');yes()};return false}
+const activeCats=()=>P().settings.cats||CATS;
+function vQuiz(){if(!S||S.kind!=='sp'){location.hash='lernen';return}
+ if(S.cur&&S.cur.checked&&S.cur.i===S.i)S.i++;
+ if(S.i>=S.q.length){view.innerHTML=`<div class="qcard c"><div style="font-size:3rem">🎉</div><h2>Runde geschafft</h2><p>${S.ok} von ${S.done} Abfragen komplett richtig.</p><div class="row" style="justify-content:center"><a class="btn" href="#lernen">Zur Übersicht</a><button class="btn pri" data-act="startSp">Nächste Runde</button></div></div>`;return}
+ const s=BY[S.q[S.i]];const ac=activeCats();const units=UNITS.map(u=>({...u,ps:u.parts.filter(c=>ac.includes(c)&&raw(s,c).length)})).filter(u=>u.ps.length);S.cur={id:s.id,i:S.i,sel:{},units,checked:false};const b=boxOf('sp',s.id);
+ const hint=c=>`<span class="tiny mut">${V.cats[c].m==='any'?'(mind. 1 Pflichtwert)':'(alle zutreffenden)'}</span>`;
+ const chipsQ=c=>`<div class="chips">${optsOf(c).map(([v,l])=>`<span class="chip" data-act="qsel" data-c="${c}" data-v="${esc(v)}">${V.cats[c].color?`<i class="sw" style="background:${V.colors[v]}"></i>`:''}${esc(l)}</span>`).join('')}</div>`;
+ view.innerHTML=`<div class="row small mut"><span>${esc(S.title)}</span><span class="sp"></span><span>${S.i+1} / ${S.q.length}</span><a href="#lernen">Beenden</a></div><div class="prog"><i style="width:${S.i/S.q.length*100}%"></i></div>
+ <div class="qcard"><div class="small mut">${b?(b>=6?'gemeistert':'Fach '+b):'Neue Karte'} · ${units.length} Kategorien</div><div class="qname">${esc(s.de)}</div><div class="sci">${esc(s.sci)}</div><div id="qres"></div>
+ ${units.map(u=>`<div class="qcat" data-u="${u.key}"><h4>${esc(u.l)} ${u.parts.length===1?hint(u.ps[0]):''}<span class="res"></span></h4>${u.ps.map(c=>`<div class="qsub" data-c="${c}">${u.parts.length>1?`<div class="subl">${esc(u.sub[c])} ${hint(c)} <span class="sres"></span></div>`:''}${chipsQ(c)}</div>`).join('')}</div>`).join('')}
+ </div><div class="sticky-act"><button class="btn big sp" data-act="qskip">Überspringen</button><button class="btn pri big sp" id="qbtn" data-act="qcheck">Prüfen</button></div>`}
+ACT.qsel=a=>{if(!S||S.cur.checked)return;const c=a.dataset.c,v=a.dataset.v;const set=S.cur.sel[c]=S.cur.sel[c]||new Set();set.has(v)?set.delete(v):set.add(v);a.classList.toggle('on')};
+ACT.qskip=()=>{S.i++;vQuiz()};
+function judge(s,c,sel){const R=req(s,c),O=opt(s,c);const m=V.cats[c].m;const hasReq=m==='all'?R.every(v=>sel.has(v)):(R.length?R.some(v=>sel.has(v)):true);const noWrong=[...sel].every(v=>R.includes(v)||O.includes(v));return hasReq&&noWrong&&(sel.size>0||!R.length)}
+ACT.qcheck=()=>{const C=S.cur;if(C.checked){S.i++;return vQuiz()}const s=BY[C.id];let good=0;
+ C.units.forEach(u=>{let uok=true;u.ps.forEach(c=>{const sel=C.sel[c]||new Set();const ok=judge(s,c,sel);if(!ok)uok=false;const box=$(`.qsub[data-c="${c}"]`);const sr=$('.sres',box);if(sr)sr.textContent=ok?'✓':'✗';
+  $$('.chip',box).forEach(ch=>{const v=ch.dataset.v,R=req(s,c),O=opt(s,c);ch.classList.remove('on');if(sel.has(v))ch.classList.add(R.includes(v)||O.includes(v)?'r-ok':'r-bad');else if(R.includes(v)&&(V.cats[c].m==='all'||!R.some(x=>sel.has(x))))ch.classList.add('r-miss');else if(O.includes(v))ch.classList.add('r-opt')})});if(uok)good++;const ub=$(`.qcat[data-u="${u.key}"]`);$('.res',ub).textContent=uok?'✅':'❌';if(u.ps.includes('gs')&&s.tw)ub.insertAdjacentHTML('beforeend',TW(s));if(u.ps.includes('sy')||u.ps.includes('vt'))ub.insertAdjacentHTML('beforeend',infoLinks(s,u.ps))});
+ const all=good===C.units.length;C.checked=true;S.done++;if(all)S.ok++;const c=grade('sp',C.id,all?'ok':'bad');if(!all&&!S.re.has(C.id)){S.re.add(C.id);S.q.push(C.id)}
+ $('#qres').innerHTML=`<div class="warnbox ${all?'':'g'}" style="${all?'background:#dcefdc;color:#1f5f33':''}">${all?'✅ Alles richtig! Weiter in '+(c.b>=6?'„gemeistert“':'Fach '+c.b)+'.':`❌ ${good} von ${C.units.length} Kategorien richtig – zurück in Fach 1. <a href="#art-${C.id}" style="text-decoration:underline">Steckbrief</a>`}</div><p class="tiny mut">Legende: grün = richtig gewählt · rot = falsch gewählt · gestrichelt = fehlte · gepunktet = optional</p>`;
+ $('#qbtn').textContent='Weiter';window.scrollTo({top:0,behavior:'smooth'})};
+/* Prüfungsfragen */
+ACT.startQ=()=>{const t=P().settings.qTopic;const ids=qIds(t);let q=queue('q',ids,'seq');if(!q.length){q=ids.filter(i=>boxOf('q',i)>0).sort((a,b)=>card('q',a).d.localeCompare(card('q',b).d)).slice(0,10);if(!q.length)return toast('Keine Fragen');toast('Nichts fällig – Karten werden vorgezogen')}
+ S={kind:'q',q,i:0,ok:0,done:0,re:new Set()};location.hash==='#fragen'?vFragen():location.hash='fragen'};
+const QBY=Object.fromEntries(QS.map(q=>[String(q.n),q]));
+function vFragen(){if(!S||S.kind!=='q'){location.hash='lernen';return}if(S.i>=S.q.length){view.innerHTML=`<div class="qcard c"><div style="font-size:3rem">📚</div><h2>Runde geschafft</h2><p>${S.ok} von ${S.done} gewusst.</p><div class="row" style="justify-content:center"><a class="btn" href="#lernen">Zur Übersicht</a><button class="btn pri" data-act="startQ">Nächste Runde</button></div></div>`;return}
+ const q=QBY[S.q[S.i]];const b=boxOf('q',q.n);const tl=(V.qtopics.find(x=>x[0]===q.t)||[,''])[1];
+ view.innerHTML=`<div class="row small mut"><span>Prüfungsfragen</span><span class="sp"></span><span>${S.i+1} / ${S.q.length}</span><a href="#lernen">Beenden</a></div><div class="prog"><i style="width:${S.i/S.q.length*100}%"></i></div>
+ <div class="qcard"><div class="small mut">Frage ${q.n} · ${q.p} Punkt${q.p>1?'e':''} · ${esc(tl)} · ${b?(b>=6?'gemeistert':'Fach '+b):'neu'}</div><div class="serif" style="font-size:1.25rem;font-weight:600;margin-top:6px">${esc(q.q)}</div>
+ <div id="ans" hidden><div class="answer">${linkSyn(esc(q.a))}</div>${q.e?`<div class="expl">💡 ${linkSyn(esc(q.e))}</div>`:''}${(q.r||[]).length?`<div class="chips" style="margin-top:8px">${q.r.filter(i=>BY[i]).map(i=>`<a class="chip" href="#art-${i}">${esc(BY[i].de)}</a>`).join('')}</div>`:''}</div></div>
+ <div class="sticky-act" id="qa"><button class="btn pri big sp" data-act="qshow">Antwort zeigen</button></div>`}
+ACT.qshow=()=>{$('#ans').hidden=false;$('#qa').innerHTML=`<button class="btn big sp bad" data-act="qg" data-r="bad">✗ Nicht gewusst</button><button class="btn big sp" data-act="qg" data-r="mid">≈ Teilweise</button><button class="btn big sp pri" data-act="qg" data-r="ok">✓ Gewusst</button>`};
+ACT.qg=a=>{const r=a.dataset.r;const id=S.q[S.i];grade(S.kind==='q'?'q':'du',id,r);S.done++;if(r==='ok')S.ok++;if(r==='bad'&&!S.re.has(id)){S.re.add(id);S.q.push(id)}S.i++;S.kind==='q'?vFragen():vDuell()};
+/* Duell */
+ACT.startDu=()=>{const ids=Object.keys(PAIRS);let q=queue('du',ids);if(!q.length)q=shuffle(ids.slice()).slice(0,10);S={kind:'du',q,i:0,ok:0,done:0,re:new Set()};location.hash==='#duell'?vDuell():location.hash='duell'};
+function vDuell(){if(!S||S.kind!=='du'){location.hash='lernen';return}if(S.i>=S.q.length){view.innerHTML=`<div class="qcard c"><div style="font-size:3rem">⚔️</div><h2>Duell beendet</h2><p>${S.ok} von ${S.done} sicher unterschieden.</p><div class="row" style="justify-content:center"><a class="btn" href="#lernen">Zur Übersicht</a><button class="btn pri" data-act="startDu">Nochmal</button></div></div>`;return}
+ const p=PAIRS[S.q[S.i]];const A=BY[p.a],B=BY[p.b];const diffs=CATS.filter(c=>c!=='sy'&&c!=='ss').map(c=>{const a=allv(A,c),b=allv(B,c);if(!a.length||!b.length)return null;const oa=a.filter(x=>!b.includes(x)),ob=b.filter(x=>!a.includes(x));if(!oa.length&&!ob.length)return null;return `<tr><td>${esc(catLabel(c))}</td><td>${oa.map(x=>esc(lab(c,x))).join(', ')||'–'}</td><td>${ob.map(x=>esc(lab(c,x))).join(', ')||'–'}</td></tr>`}).filter(Boolean).join('');
+ view.innerHTML=`<div class="row small mut"><span>Doppelgänger-Duell</span><span class="sp"></span><span>${S.i+1} / ${S.q.length}</span><a href="#lernen">Beenden</a></div><div class="prog"><i style="width:${S.i/S.q.length*100}%"></i></div>
+ <div class="qcard"><div class="small mut">Woran unterscheidest du …</div><div class="row" style="align-items:stretch;margin-top:8px">${[A,B].map(s=>`<div class="sp" style="min-width:140px"><div class="thumb" style="border-radius:14px">${thumb(s)}</div><div class="de" style="margin-top:6px">${esc(s.de)}</div><div class="sci">${esc(s.sci)}</div><div class="badges">${swBadge(s)}</div></div>`).join('')}</div>
+ <div id="ans" hidden>${p.h.map(x=>`<div class="answer"><b>${esc(BY[x.from].de)} ↔ ${esc(BY[x.to].de)}:</b> ${esc(x.t)}</div>`).join('')}${diffs?`<div class="tbl"><table><tr><td>Merkmal</td><td><b>nur ${esc(A.de)}</b></td><td><b>nur ${esc(B.de)}</b></td></tr>${diffs}</table></div>`:''}</div></div>
+ <div class="sticky-act" id="qa"><button class="btn pri big sp" data-act="qshow">Unterschiede zeigen</button></div>`}
+/* Wer bin ich */
+ACT.startRaten=()=>{const ids=deckIds(P().settings.spDeck).filter(i=>BY[i].tx.merke);if(ids.length<4)return toast('Zu wenige Arten in der Auswahl');S={kind:'raten',q:shuffle(ids.slice()).slice(0,10),i:0,ok:0,done:0};location.hash==='#raten'?vRaten():location.hash='raten'};
+function vRaten(){if(!S||S.kind!=='raten'){location.hash='lernen';return}if(S.i>=S.q.length){view.innerHTML=`<div class="qcard c"><div style="font-size:3rem">🔎</div><h2>${S.ok} von ${S.done} erkannt</h2><div class="row" style="justify-content:center"><a class="btn" href="#lernen">Zur Übersicht</a><button class="btn pri" data-act="startRaten">Nochmal</button></div></div>`;return}
+ const s=BY[S.q[S.i]];const pool=[...new Set([...(s.vw||[]).filter(v=>v.id&&BY[v.id]).map(v=>v.id),...shuffle((GSP[s.gen]||[]).filter(i=>i!==s.id)),...shuffle(SP.filter(x=>allv(x,'fk')[0]===allv(s,'fk')[0]&&allv(x,'hy')[0]===allv(s,'hy')[0]).map(x=>x.id))])].filter(i=>i!==s.id).slice(0,3);
+ while(pool.length<3){const r=SP[Math.random()*SP.length|0].id;if(r!==s.id&&!pool.includes(r))pool.push(r)}
+ const words=[s.de,...(s.alt||[]),s.sci,s.gen,...s.de.split(/[\s-]+/).filter(w=>w.length>4)];let txt=[s.tx.merke,s.tx.hut,s.tx.fs,s.tx.stiel,s.tx.vork].filter(Boolean).join(' ');words.forEach(w=>{txt=txt.split(w).join('…')});
+ S.opts=shuffle([s.id,...pool]);S.ans=s.id;S.answered=false;
+ view.innerHTML=`<div class="row small mut"><span>Wer bin ich?</span><span class="sp"></span><span>${S.i+1} / ${S.q.length}</span><a href="#lernen">Beenden</a></div><div class="prog"><i style="width:${S.i/S.q.length*100}%"></i></div>
+ <div class="qcard"><p>${esc(txt)}</p>${S.opts.map(i=>`<button class="opt" data-act="rat" data-id="${i}">${esc(BY[i].de)} <span class="sci">${esc(BY[i].sci)}</span></button>`).join('')}</div><div class="sticky-act" id="qa"></div>`}
+ACT.rat=a=>{if(S.answered){return}S.answered=true;S.done++;const ok=a.dataset.id===S.ans;if(ok)S.ok++;$$('.opt').forEach(b=>{if(b.dataset.id===S.ans)b.classList.add('r-ok');else if(b===a)b.classList.add('r-bad')});$('#qa').innerHTML=`<a class="btn big sp" href="#art-${S.ans}">Steckbrief</a><button class="btn pri big sp" data-act="ratNext">Weiter</button>`};
+ACT.ratNext=()=>{S.i++;vRaten()};
+/* Statistik */
+function vStat(){const blk=(t,deck,ids)=>{const c=[0,0,0,0,0,0,0];ids.forEach(i=>c[boxOf(deck,i)]++);const mx=Math.max(1,...c);const s=stat(deck,ids);
+ return `<div class="panel"><h3>${t}</h3><div class="small mut">${s.t} Karten · ${s.d} heute fällig · ${s.m} gemeistert (${Math.round(s.m/Math.max(1,s.t)*100)} %)</div><div class="boxes">${c.map(n=>`<div style="height:${n/mx*100}%"><span>${n}</span></div>`).join('')}</div><div class="boxl"><span>neu</span><span>F1</span><span>F2</span><span>F3</span><span>F4</span><span>F5</span><span>✓</span></div></div>`};
+ const days=Object.entries(P().days).sort().slice(-14);
+ view.innerHTML=`<p class="small"><a href="#lernen">← Lernen</a></p><h1>Statistik</h1>${blk('Arten – FM1','sp',deckIds('1'))}${blk('Arten – FM2','sp',deckIds('2'))}${blk('Arten – PSV-Zusatz','sp',deckIds('P'))}${blk('Prüfungsfragen','q',QS.map(q=>String(q.n)))}${blk('Doppelgänger','du',Object.keys(PAIRS))}
+ <div class="panel"><h3>Letzte Lerntage</h3>${days.length?days.map(([d,v])=>`<div class="row small"><span>${d}</span><span class="sp"></span><span>${v.rev||0} Abfragen · ${(v.new_sp||0)+(v.new_q||0)+(v.new_du||0)} neu</span></div>`).join(''):'<div class="mut small">Noch keine Lerntage.</div>'}</div>`}
+/* ---------- Profil & Einstellungen ---------- */
+function vMehr(){const st=P().settings;const ac=activeCats();const lb=st.lastBackup?new Date(st.lastBackup).toLocaleDateString('de-DE'):'noch nie';
+ view.innerHTML=`<h1>Profil</h1>
+ <div class="panel"><h3>Lernprofile</h3><p class="small mut">Jedes Profil hat seinen eigenen Lernstand – praktisch, wenn mehrere Personen ein Gerät nutzen.</p><div class="chips">${Object.entries(DB.profiles).map(([k,p])=>`<span class="chip ${k===DB.active?'on':''}" data-act="prof" data-k="${k}">${esc(p.name)}</span>`).join('')}<span class="chip" data-act="profNew">+ Neues Profil</span></div>
+  <div class="row" style="margin-top:10px"><button class="btn sm" data-act="profRen">Umbenennen</button>${Object.keys(DB.profiles).length>1?'<button class="btn sm bad" data-act="profDel">Profil löschen</button>':''}</div></div>
+ <div class="panel"><h3>Backup</h3><p class="small mut">Der Lernstand wird nur in diesem Browser gespeichert. Sichere ihn regelmäßig – damit kannst du ihn auch auf ein anderes Gerät übertragen. Letztes Backup: <b>${lb}</b></p>
+  <div class="row"><button class="btn pri" data-act="exp">⬇ Backup-Datei speichern</button><button class="btn" data-act="expCopy">Backup kopieren</button><label class="btn">⬆ Backup laden<input type="file" id="impf" accept=".json,application/json" hidden></label><button class="btn" data-act="impPaste">Backup einfügen</button></div></div>
+ <div class="panel"><h3>Lernen</h3><div class="row small"><label>Neue Karten pro Tag <input class="inp" type="number" min="1" max="200" id="npd" value="${st.newPerDay}" style="width:90px"></label><label>Karten pro Runde <input class="inp" type="number" min="5" max="200" id="ses" value="${st.session}" style="width:90px"></label></div>
+  <div class="fcat">Abgefragte Kategorien (Merkmals-Abfrage)</div><div class="row" style="margin-bottom:8px"><button class="btn sm" data-act="catAll">Alle</button><button class="btn sm" data-act="catCore">Nur Kernmerkmale</button></div>
+  <div class="chips">${UNITS.map(u=>`<span class="chip ${u.parts.every(c=>ac.includes(c))?'on':''}" data-act="catT" data-c="${u.parts.join(',')}">${esc(u.l)}</span>`).join('')}</div></div>
+ <div class="panel"><h3>Darstellung</h3><div class="seg">${[['auto','Automatisch'],['light','Hell'],['dark','Dunkel']].map(([k,l])=>`<button class="${(st.theme||'auto')===k?'on':''}" data-act="theme" data-k="${k}">${l}</button>`).join('')}</div></div>
+ <div class="panel"><h3>Über diese App</h3><p class="small">Inhalte: ${SP.length} Arten (DGfM-Artenliste Feldmykologe Stufe 1+2, Stand 31.01.2022, ergänzt um weitere Arten aus dem PSV-Fragenkatalog), ${GE.length} Gattungsporträts, ${QS.length} Prüfungsfragen (DGfM, Stand 14.07.2025) mit Musterantworten. Speisewert-Angaben orientieren sich an der DGfM-Positivliste der Speisepilze und der DGfM-Liste der Pilze mit uneinheitlich beurteiltem Speisewert (Stand 01.05.2026). Fotos: Wikimedia Commons, Urheber und Lizenz jeweils am Bild.</p><p class="small mut">Diese App ist eine Lernhilfe. Sie ersetzt weder Fachliteratur noch die Beratung durch geprüfte Pilzsachverständige. Pilze niemals allein anhand einer App bestimmen und essen.</p>
+ <p class="small"><b>Unabhängig nutzen:</b> Den App-Ordner (index.html + data/ + img/) kannst du kostenlos z. B. bei GitHub Pages oder Netlify hochladen und den Link teilen. Auf dem Handy über „Zum Home-Bildschirm“ installieren – dann funktioniert sie auch offline. Jede Person hat ihren eigenen Lernstand im eigenen Browser.</p></div>`;
+ $('#npd').onchange=e=>{st.newPerDay=Math.max(1,+e.target.value||10);save()};$('#ses').onchange=e=>{st.session=Math.max(5,+e.target.value||20);save()};
+ $('#impf').onchange=e=>{const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=()=>importData(r.result);r.readAsText(f)}}
+ACT.prof=a=>{DB.active=a.dataset.k;save();applyTheme();vMehr();toast('Profil gewechselt: '+P().name)};
+ACT.profNew=()=>askText('Name des neuen Profils','',n=>{const k='p'+Date.now();DB.profiles[k]=newProfile(n||'Profil');DB.active=k;save();vMehr()});
+ACT.profRen=()=>askText('Neuer Name',P().name,n=>{if(n){P().name=n;save();vMehr()}});
+ACT.profDel=()=>confirmBox(`Profil „${P().name}“ mit allem Lernstand löschen?`,()=>{delete DB.profiles[DB.active];DB.active=Object.keys(DB.profiles)[0];save();vMehr()});
+function askText(title,val,cb){const pan=$('#sheetPan');pan.innerHTML=`<h3>${esc(title)}</h3><input class="inp" id="at" value="${esc(val)}"><div class="row" style="margin-top:12px"><button class="btn" data-act="closeSheet">Abbrechen</button><button class="btn pri" id="ay">OK</button></div>`;$('#sheet').classList.add('open');$('#at').focus();$('#ay').onclick=()=>{$('#sheet').classList.remove('open');cb($('#at').value.trim())}}
+const exportJSON=()=>JSON.stringify({app:'pilzwissen',v:1,date:new Date().toISOString(),active:DB.active,profiles:DB.profiles});
+ACT.exp=async()=>{const fn='pilzwissen-backup-'+today()+'.json';try{if(window.claude&&window.claude.use){const d=await window.claude.use('downloads');if(d){await d.save({filename:fn,data:exportJSON()});P().settings.lastBackup=Date.now();save();toast('Backup gespeichert');return}}}catch(e){toast('Download abgelehnt oder nicht möglich – nutze „Backup kopieren“');return}
+ try{const b=new Blob([exportJSON()],{type:'application/json'});const u=URL.createObjectURL(b);const a=document.createElement('a');a.href=u;a.download=fn;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(u),2000);P().settings.lastBackup=Date.now();save();toast('Backup gespeichert (falls kein Download startet: „Backup kopieren“ nutzen)')}catch(e){ACT.expCopy()}};
+ACT.expCopy=()=>{const t=exportJSON();const done=()=>{P().settings.lastBackup=Date.now();save();toast('Backup in die Zwischenablage kopiert – z. B. in einer Notiz sichern')};
+ if(navigator.clipboard&&navigator.clipboard.writeText)navigator.clipboard.writeText(t).then(done,()=>showText(t));else showText(t)};
+function showText(t){const pan=$('#sheetPan');pan.innerHTML=`<h3>Backup-Text</h3><p class="small mut">Alles markieren und kopieren:</p><textarea class="inp" style="min-height:220px" readonly>${esc(t)}</textarea><button class="btn" data-act="closeSheet" style="margin-top:10px">Schließen</button>`;$('#sheet').classList.add('open')}
+ACT.impPaste=()=>{const pan=$('#sheetPan');pan.innerHTML=`<h3>Backup einfügen</h3><textarea class="inp" id="ip" style="min-height:200px" placeholder="Backup-Text hier einfügen"></textarea><div class="row" style="margin-top:10px"><button class="btn" data-act="closeSheet">Abbrechen</button><button class="btn pri" id="ipy">Laden</button></div>`;$('#sheet').classList.add('open');$('#ipy').onclick=()=>{$('#sheet').classList.remove('open');importData($('#ip').value)}};
+function importData(txt){try{const j=JSON.parse(txt);if(!j.profiles)throw 0;confirmBox(`Backup vom ${(j.date||'').slice(0,10)} mit ${Object.keys(j.profiles).length} Profil(en) laden? Gleichnamige Profile auf diesem Gerät werden ersetzt.`,()=>{Object.assign(DB.profiles,j.profiles);if(j.active&&DB.profiles[j.active])DB.active=j.active;save();applyTheme();toast('Backup geladen');vMehr()})}catch(e){toast('Das ist keine gültige Backup-Datei.')}}
+ACT.catT=a=>{const st=P().settings;let c=st.cats||CATS.slice();const ks=a.dataset.c.split(',');const on=ks.every(k=>c.includes(k));c=on?c.filter(x=>!ks.includes(x)):[...new Set([...c,...ks])];st.cats=CATS.filter(x=>c.includes(x));save();vMehr()};
+ACT.catAll=()=>{P().settings.cats=null;save();vMehr()};ACT.catCore=()=>{P().settings.cats=V.core.slice();save();vMehr()};
+ACT.theme=a=>{P().settings.theme=a.dataset.k;save();applyTheme();vMehr()};
+/* ---------- Start ---------- */
+applyTheme();matchMedia('(prefers-color-scheme: dark)').addEventListener&&matchMedia('(prefers-color-scheme: dark)').addEventListener('change',applyTheme);
+route();
+try{if('serviceWorker'in navigator&&location.protocol==='https:'&&!/claude|anthropic/.test(location.hostname))navigator.serviceWorker.register('sw.js').catch(()=>{})}catch(e){}
+})();
+</script>
+</body>
+</html>

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Tägliche Wetterebenen für die Pilz-Heatmap (DWD HYRAS-DE-PRE/-TAS, AMBAV-Bodenfeuchte).
+"""Tägliche Wetterebenen für die Pilz-Heatmap (DWD HYRAS-DE-PRE/-TAS/-TASMIN, AMBAV-Bodenfeuchte).
 
 Aufruf: heat_daily.py <ausgabeordner> [--date JJJJ-MM-TT] [--local <ordner mit .nc-Dateien>]
 Ergebnis: daily.png (Ebenen als Graustufen-Mosaik), daily.json (Metadaten), log.txt
@@ -67,6 +67,23 @@ def read_days(path, var, wanted):
     info = {'x': d.variables['x'][:].astype('float64'), 'y': d.variables['y'][:].astype('float64'), 'last': max(dates) if dates else None}
     d.close()
     return out, info
+
+
+def read_min(path, var, since, until, last5):
+    """Tiefster Wert je Rasterpunkt über [since, until] und über die Tage in last5 (ohne alles im Speicher zu halten)."""
+    d = nc.Dataset(path); v = d.variables[var]; t = d.variables['time']
+    dates = [dt.date(x.year, x.month, x.day) for x in nc.num2date(t[:], t.units, getattr(t, 'calendar', 'standard'))]
+    seas = m5 = None; n = n5 = 0
+    for i, day in enumerate(dates):
+        if not (since <= day <= until): continue
+        a = np.ma.filled(v[i].astype('float32'), np.nan)
+        seas = a if seas is None else np.fmin(seas, a); n += 1
+        if day in last5:
+            m5 = a.copy() if m5 is None else np.fmin(m5, a); n5 += 1
+    info = {'x': d.variables['x'][:].astype('float64'), 'y': d.variables['y'][:].astype('float64'),
+            'last': max(dates) if dates else None}
+    d.close()
+    return seas, m5, n, n5, info
 
 
 def index_map(info, crs):
@@ -155,6 +172,36 @@ def main():
         t15_g = tmin_g = np.full((G.H, G.W), np.nan, 'float32'); meta['tas_last'] = None
     layers += [enc(t15_g, 4.0, 20.0), enc(tmin_g, 4.0, 20.0)]
     meta['layers'] += [{'id': 't15', 'scale': 4.0, 'offset': 20, 'unit': '°C'}, {'id': 'tmin5', 'scale': 4.0, 'offset': 20, 'unit': '°C'}]
+
+    # --- Frost: Tagestiefstwerte (2 m) der letzten 5 Tage und seit Saisonbeginn ---
+    # Saison = seit 1. August (ab August); in der ersten Jahreshälfte die letzten 30 Tage
+    since = dt.date(today.year, 8, 1) if today.month >= 8 else today - dt.timedelta(days=30)
+    try:
+        last5 = set(days[1:6]); seas = m5 = None; n = n5 = 0; finfo = None
+        for y in sorted({since.year, today.year}):
+            p = find_file('hyras_de/air_temperature_min/', rf'tasmin_hyras_1_{y}_v[\d\-]+_de\.nc', A.local, tmp)
+            if not p: log('keine Datei für tasmin', y); continue
+            a, b, k, k5, i = read_min(p, 'tasmin', since, today, last5)
+            if a is not None: seas = a if seas is None else np.fmin(seas, a)
+            if b is not None: m5 = b if m5 is None else np.fmin(m5, b)
+            n += k; n5 += k5
+            if finfo is None or (i['last'] and (finfo['last'] is None or i['last'] > finfo['last'])): finfo = i
+            if not A.local: os.remove(p)
+        if seas is None: raise RuntimeError('keine Tiefsttemperaturen im Zeitraum')
+        fim = index_map(finfo, 'EPSG:3035')
+        fseas_g = sample(seas, fim)
+        fmin5_g = sample(m5, fim) if m5 is not None else np.full((G.H, G.W), np.nan, 'float32')
+        meta['frost_since'] = since.isoformat(); meta['frost_last'] = finfo['last'].isoformat()
+        meta['frost_days'] = n; meta['frost_days5'] = n5
+        ok = np.isfinite(fseas_g)
+        log('Tiefstwerte', since, 'bis', finfo['last'], '|', n, 'Tage | Zellen mit Frost: %.0f %%, unter -5 °C: %.0f %%, unter -10 °C: %.0f %%'
+            % (100 * np.mean(fseas_g[ok] < 0), 100 * np.mean(fseas_g[ok] < -5), 100 * np.mean(fseas_g[ok] < -10)))
+    except Exception as e:
+        log('Frost fehlgeschlagen:', e); LOG.append(traceback.format_exc())
+        fseas_g = fmin5_g = None; meta['frost_since'] = None
+    if fseas_g is not None:   # nur anhängen, wenn vorhanden – die App kommt auch ohne aus
+        layers += [enc(fmin5_g, 4.0, 30.0), enc(fseas_g, 4.0, 30.0)]
+        meta['layers'] += [{'id': 'fmin5', 'scale': 4.0, 'offset': 30, 'unit': '°C'}, {'id': 'fseas', 'scale': 4.0, 'offset': 30, 'unit': '°C'}]
 
     # --- Bodenfeuchte ---
     try:

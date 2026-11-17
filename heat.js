@@ -28,6 +28,12 @@ const num=(x,d=0)=>x.toLocaleString('de-DE',{minimumFractionDigits:d,maximumFrac
 const dDE=s=>{if(!s)return '–';const [y,m,d]=s.split('-');return `${+d}.${+m}.${y}`};
 const SP=()=>window.SPECIES||[];
 let DATA=null,LOADING=null,MAP=null,OVER=null,MARK=null,STATE={mode:'wetter',id:null},SCORE=null,BEST=null,LASTCELL=-1,POS=null;
+/* Kartenoptionen (Hintergrund, Baumarten-Ebene, Deckkraft der Bewertung) – je Gerät gemerkt */
+const OPT={base:'osm',trees:false,op:70};
+try{Object.assign(OPT,JSON.parse(localStorage.getItem('pw_karte')||'{}'))}catch(e){}
+const saveOpt=()=>{try{localStorage.setItem('pw_karte',JSON.stringify(OPT))}catch(e){}};
+const TCOL={kiefer:'#becd46',fichte:'#50b978',douglasie:'#5f7387',laerche:'#3cb4c8',tanne:'#1e6405',buche:'#e6323c',eiche:'#f0dc00',birke:'#bea078',erle:'#fa8c3c',sonst:'#be64c8',verlust:'#000000'};
+const DLR_WMS='https://geoservice.dlr.de/eoc/land/wms';
 
 /* ---------- Daten laden ---------- */
 async function mosaic(base,name){
@@ -80,9 +86,13 @@ function model(s){
 }
 function season(mo,date){const v=i=>({0:0,1:.6,2:1})[mo[(i+12)%12]]||0;const m=date.getMonth(),d=date.getDate();
   return d>=15?v(m)+(v(m+1)-v(m))*(d-15)/30:v(m-1)+(v(m)-v(m-1))*(d+15)/30}
+/* Frost: Tagestiefstwerte der Luft in 2 m Höhe (HYRAS-DE-TASMIN); Ebenen fehlen in älteren Datenständen */
+const fr=(l,i)=>!l||l[i]===255?null:l[i]/4-30;
+const cap=t=>t[0].toUpperCase()+t.slice(1);
+const frostName=t=>t>=0?null:t>=-5?'leichter Frost':t>=-10?'mäßiger Frost':t>=-15?'strenger Frost':'sehr strenger Frost';
 /* Rohwerte einer Zelle */
 function cell(i){const {d,s}=DATA,L=d.L;if(L.peff[i]===255)return null;
-  const o={peff:L.peff[i]/2,recent:L.recent[i]===255?null:L.recent[i]/2,t15:L.t15[i]===255?null:L.t15[i]/4-20,tmin:L.tmin5[i]===255?null:L.tmin5[i]/4-20,sm:L.sm[i]===255?null:L.sm[i]/2,tr:null,ph:null,forest:null,loss:0};
+  const o={peff:L.peff[i]/2,recent:L.recent[i]===255?null:L.recent[i]/2,t15:L.t15[i]===255?null:L.t15[i]/4-20,tmin:L.tmin5[i]===255?null:L.tmin5[i]/4-20,sm:L.sm[i]===255?null:L.sm[i]/2,fmin:fr(L.fmin5,i),fseas:fr(L.fseas,i),tr:null,ph:null,forest:null,loss:0};
   if(s&&s.L.kiefer[i]!==255){o.tr=TREE.map(t=>s.L[t][i]/250);o.loss=s.L.verlust?s.L.verlust[i]/250:0;o.forest=o.tr.reduce((x,y)=>x+y,0);o.ph=s.L.ph[i]===255?null:s.L.ph[i]/40+3}
   return o}
 const fWet=c=>{const fp=ss(c.peff,CFG.peff[0],CFG.peff[1]);return c.sm==null?fp:CFG.wRain*fp+(1-CFG.wRain)*ss(c.sm,CFG.sm[0],CFG.sm[1])};
@@ -138,10 +148,15 @@ function cellAt(la,lo){const g=DATA.g,cx=Math.floor((mx(lo)-g.x0)/g.cell),cy=Mat
 
 function css(){if(document.getElementById('hm-css'))return;const s=document.createElement('style');s.id='hm-css';s.textContent=`
 .hm-ctl{display:flex;flex-wrap:wrap;gap:8px;margin:10px 0}.hm-ctl select,.hm-ctl input{font:inherit;padding:9px 11px;border:1px solid var(--line);border-radius:12px;background:var(--card);color:var(--ink);min-width:0}
-.hm-ctl select{flex:0 1 auto}.hm-ctl input{flex:1 1 180px}
+.hm-ctl select{flex:0 1 auto}.hm-sw{flex:1 1 180px;position:relative;z-index:20;min-width:0}.hm-sw input{width:100%}
+.hm-sug{position:absolute;left:0;right:0;top:calc(100% + 4px);background:var(--card);border:1px solid var(--line);border-radius:12px;box-shadow:var(--sh);max-height:min(52vh,360px);overflow:auto;padding:4px}.hm-sug[hidden]{display:none}
+.hm-sug div{padding:9px 10px;border-radius:9px;cursor:pointer;line-height:1.25}.hm-sug div.act,.hm-sug div:hover{background:var(--chip)}.hm-sug div i{display:block;font-size:.8rem;color:var(--mut)}.hm-sug p{margin:0;padding:9px 10px;color:var(--mut);font-size:.86rem}
 .hm-map{height:min(64vh,620px);border-radius:var(--r);border:1px solid var(--line);overflow:hidden;background:#dfe6dc;position:relative;z-index:0}
 .hm-map .hm-px{image-rendering:pixelated;image-rendering:crisp-edges}
 .hm-busy[hidden]{display:none}.hm-busy{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,.55);z-index:900;font-weight:600;color:#29241d}
+.hm-lay{align-items:center;margin:8px 0 2px}.hm-lay .chip{cursor:pointer}.hm-lay .sep{width:1px;align-self:stretch;background:var(--line);margin:0 2px}
+.hm-op{display:flex;align-items:center;gap:8px;font-size:.84rem;color:var(--mut);flex:1 1 170px}.hm-op input{flex:1;min-width:80px;padding:0;accent-color:var(--moss2)}
+.hm-tleg{display:flex;flex-wrap:wrap;gap:4px 12px;font-size:.8rem;margin:6px 2px}.hm-tleg[hidden]{display:none}.hm-tleg span{display:inline-flex;align-items:center;gap:5px}.hm-tleg i{width:12px;height:12px;border-radius:3px;display:inline-block;border:1px solid rgba(0,0,0,.25)}
 .hm-leg{display:flex;align-items:center;gap:10px;margin:10px 2px;font-size:.8rem;color:var(--mut)}.hm-leg i{flex:1;height:10px;border-radius:6px;background:linear-gradient(90deg,#fff0aa,#fdd470 15%,#f9a03f 35%,#e8602c 55%,#c1272d 75%,#6a0d47)}
 .hm-bar{display:grid;grid-template-columns:110px 1fr 44px;gap:8px;align-items:center;font-size:.86rem;margin:5px 0}.hm-bar b{font-weight:500}.hm-bar span{height:8px;border-radius:5px;background:var(--chip);overflow:hidden;display:block}.hm-bar span i{display:block;height:100%;background:var(--moss2)}.hm-bar em{font-style:normal;text-align:right;color:var(--mut)}
 .hm-kv{display:grid;grid-template-columns:auto 1fr;gap:3px 14px;font-size:.88rem;margin:6px 0}.hm-kv span{color:var(--mut)}
@@ -158,7 +173,7 @@ async function update(root){
   else r=grid(null);
   SCORE=r.out;BEST=r.best?{idx:r.best,list:r.list}:null;
   const url=await paint(SCORE);
-  if(OVER){const old=OVER._url;OVER.setUrl(url);if(old)URL.revokeObjectURL(old)}else{OVER=L.imageOverlay(url,bounds(),{opacity:.72,className:'hm-px'}).addTo(MAP)}
+  if(OVER){const old=OVER._url;OVER.setUrl(url);if(old)URL.revokeObjectURL(old)}else{OVER=L.imageOverlay(url,bounds(),{opacity:OPT.op/100,className:'hm-px'}).addTo(MAP)}
   if(busy)busy.hidden=true;
   const note=root.querySelector('#hm-note');
   if(note){let t='';if(STATE.mode==='art'){const s=SP().find(x=>x.id===STATE.id);if(s){const m=model(s),sea=season(m.mo,DATA.date);
@@ -171,6 +186,7 @@ async function update(root){
     note.textContent=t}
   if(LASTCELL>=0)detail(root,LASTCELL);
 }
+function fsince(){const f=DATA.d.meta.frost_since;if(!f)return 'Saisonbeginn';const [y,m,d]=f.split('-');return `${+d}.${+m}.`}
 function bar(l,v){return `<div class="hm-bar"><b>${l}</b><span><i style="width:${Math.round(clamp(v)*100)}%"></i></span><em>${Math.round(clamp(v)*100)} %</em></div>`}
 function detail(root,i){
   const box=root.querySelector('#hm-detail');if(!box)return;const c=cell(i);LASTCELL=i;
@@ -179,7 +195,7 @@ function detail(root,i){
   const v=SCORE?Math.max(0,SCORE[i]):0;let h=`<div class="row" style="justify-content:space-between;align-items:baseline"><h3 style="margin:0">${esc(title())}</h3><span class="hm-score">${Math.round(v)}<small class="mut" style="font-size:.8rem;font-weight:500"> / 100</small></span></div><p class="tiny mut" style="margin:2px 0 8px">Zelle bei ${num(la,3)}° N, ${num(lo,3)}° O (ca. 1 × 1 km)</p>`;
   if(STATE.mode==='art'){const s=SP().find(x=>x.id===STATE.id);if(s){const f=factors(c,s);h+=bar('Saison',f.saison)+bar('Standort',f.standort)+bar('Boden-pH',f.boden)+bar('Feuchte',f.feuchte)+bar('Temperatur',f.temperatur)}}
   else if(STATE.mode==='speise'&&BEST&&BEST.idx[i]>=0){const s=BEST.list[BEST.idx[i]];h+=`<p class="small">Beste Art hier: <a href="#karte-${esc(s.id)}" style="text-decoration:underline">${esc(s.de)}</a></p>`}
-  h+=`<div class="hm-kv"><span>Wirksamer Niederschlag</span><b>${num(c.peff,1)} mm</b>${c.recent!=null?`<span>Regen der letzten 3 Tage</span><b>${num(c.recent,1)} mm <small class="mut">(wirkt erst in einigen Tagen)</small></b>`:''}${c.sm!=null?`<span>Bodenfeuchte (0–30 cm)</span><b>${num(c.sm)} % nFK</b>`:''}${c.t15!=null?`<span>Temperatur, Mittel 15 Tage</span><b>${num(c.t15,1)} °C</b>`:''}${c.tmin!=null?`<span>Kältester Tag (letzte 5)</span><b>${num(c.tmin,1)} °C</b>`:''}`;
+  h+=`<div class="hm-kv"><span>Wirksamer Niederschlag</span><b>${num(c.peff,1)} mm</b>${c.recent!=null?`<span>Regen der letzten 3 Tage</span><b>${num(c.recent,1)} mm <small class="mut">(wirkt erst in einigen Tagen)</small></b>`:''}${c.sm!=null?`<span>Bodenfeuchte (0–30 cm)</span><b>${num(c.sm)} % nFK</b>`:''}${c.t15!=null?`<span>Temperatur, Mittel 15 Tage</span><b>${num(c.t15,1)} °C</b>`:''}${c.tmin!=null?`<span>Kältester Tag (letzte 5)</span><b>${c.fmin!=null?`Tagesmittel ${num(c.tmin,1)} °C · Tiefstwert ${num(c.fmin,1)} °C <small class="mut">(${frostName(c.fmin)||'kein Frost'})</small>`:`${num(c.tmin,1)} °C`}</b>`:''}${c.fseas!=null?`<span>Frost seit ${fsince()}</span><b>${frostName(c.fseas)?`${cap(frostName(c.fseas))} · Tiefstwert ${num(c.fseas,1)} °C`:`Noch keiner · Tiefstwert ${num(c.fseas,1)} °C`} <small class="mut">(Luft in 2 m Höhe)</small></b>`:''}`;
   if(c.tr){const t=TREE.map((n,j)=>[n,c.tr[j]]).filter(x=>x[1]>=.01).sort((a,b)=>b[1]-a[1]);
     h+=`<span>Wald in der Zelle</span><b>${num(c.forest*100)} %${t.length?' – '+t.slice(0,5).map(x=>`${TREEDE[x[0]]} ${num(x[1]*100)} %`).join(', '):''}</b>${c.loss>=.01?`<span>Kahl-/Schadfläche</span><b>${num(c.loss*100)} %</b>`:''}${c.ph!=null?`<span>Boden-pH (0–15 cm)</span><b>${num(c.ph,1)}</b>`:''}`}
   h+='</div>';
@@ -194,30 +210,62 @@ async function view(root,id){
   if(id&&SP().some(s=>s.id===id))STATE={mode:'art',id};else if(STATE.mode==='art'&&!id)STATE={mode:'wetter',id:null};
   root.innerHTML=`<h1>Pilzkarte</h1><p class="small mut" id="hm-stand">Lade Wetterdaten …</p>
   <div class="hm-ctl"><select id="hm-mode" aria-label="Anzeige"><option value="wetter">Pilzwetter allgemein</option><option value="speise">Speisepilze</option><option value="art" hidden>Einzelne Art</option></select>
-  <input id="hm-q" type="search" list="hm-dl" placeholder="Art suchen, z. B. Steinpilz" aria-label="Art suchen" autocomplete="off"><datalist id="hm-dl"></datalist><button class="btn sm" id="hm-loc" type="button">◎ Mein Standort</button></div>
+  <div class="hm-sw"><input id="hm-q" type="search" placeholder="Art suchen, z. B. Steinpilz" aria-label="Art suchen" autocomplete="off" role="combobox" aria-expanded="false" aria-controls="hm-sug"><div class="hm-sug" id="hm-sug" role="listbox" hidden></div></div><button class="btn sm" id="hm-loc" type="button">◎ Mein Standort</button></div>
   <div class="hm-map" id="hm-map"><div class="hm-busy">Berechne Karte …</div></div>
+  <div class="hm-ctl hm-lay"><span class="chip" data-b="osm">Karte</span><span class="chip" data-b="sat">Satellit</span><i class="sep"></i><span class="chip" id="hm-trees">Baumarten (10 m)</span><label class="hm-op">Bewertung <input type="range" id="hm-op" min="0" max="100" step="5" aria-label="Deckkraft der Bewertung"></label></div>
+  <div class="hm-tleg" id="hm-tleg" hidden>${Object.keys(TCOL).map(k=>`<span><i style="background:${TCOL[k]}"></i>${TREEDE[k]}</span>`).join('')}</div>
   <div class="hm-leg"><span>gering</span><i></i><span>sehr gut</span></div>
   <p class="small mut" id="hm-note" style="margin:0 2px 8px"></p>
   <div class="panel" id="hm-detail"><p class="mut small" style="margin:0">Tippe auf die Karte, um die Werte einer Zelle und die dort passenden Arten zu sehen.</p></div>
   <div class="panel"><h3 style="margin-top:0">So entsteht die Bewertung</h3><p class="small">Der Wert (0–100) ist eine <b>Schätzung</b> aus Saison laut Steckbrief, Baumbestand, Boden-pH, Feuchte und Temperatur – kein Fundnachweis. Feuchte: wirksamer Niederschlag (Regen vor 4–5 Tagen zählt halb, vor 6–9 Tagen voll, vor 10–14 Tagen zu 70 %, vor 15–20 Tagen zu 30 %; die letzten 3 Tage noch nicht) und Bodenfeuchte. Die Baumartenkarte kennt nur die vorherrschende Art je 10-m-Fläche; Hainbuche, Linde, Pappel u. a. stecken in „sonstige Bäume“.</p>
-  <p class="tiny mut" style="margin-bottom:0">Daten: Deutscher Wetterdienst (HYRAS-DE-PRE, HYRAS-DE-TAS, Bodenfeuchte AMBAV) · DLR, Tree Species Germany 2022 (CC BY 4.0) · ISRIC SoilGrids 2.0 (CC BY 4.0) · Karte © OpenStreetMap-Mitwirkende</p></div>`;
+  <p class="small">Die Bewertung gilt für die ganze Zelle von etwa 1 × 1 km. Wo darin welcher Bestand steht, zeigt die Ebene <b>Baumarten (10 m)</b> – am besten hineinzoomen und die Bewertung mit dem Regler abblenden.</p>
+  <p class="tiny mut" style="margin-bottom:0">Daten: Deutscher Wetterdienst (HYRAS-DE-PRE, -TAS und -TASMIN, Bodenfeuchte AMBAV) · DLR, Tree Species Germany 2022 (CC BY 4.0) · ISRIC SoilGrids 2.0 (CC BY 4.0) · Karte © OpenStreetMap-Mitwirkende · Satellitenbild © Esri, Maxar, Earthstar Geographics</p></div>`;
   const stand=root.querySelector('#hm-stand');
   try{await Promise.all([load(),lib()])}catch(e){
     root.querySelector('#hm-map').innerHTML=`<div style="padding:22px;text-align:center"><p><b>Die Pilzkarte konnte nicht geladen werden.</b></p><p class="small">Sie braucht eine Internetverbindung und funktioniert nur in der selbst gehosteten Fassung der App.</p><p><a class="btn" href="${SITE}#karte" target="_blank" rel="noopener">Pilzkarte dort öffnen</a></p></div>`;
     stand.textContent='';return}
   if(!root.isConnected)return;
   const m=DATA.d.meta;stand.textContent=`Stand ${dDE(m.date)} · Niederschlag bis ${dDE(m.pr_last)}`+(m.sm_date?` · Bodenfeuchte vom ${dDE(m.sm_date)}`:' · ohne Bodenfeuchte')+(m.tas_last?'':' · ohne Temperatur');
-  const dl=root.querySelector('#hm-dl');dl.innerHTML=SP().map(s=>`<option value="${esc(s.de)}">${esc(s.sci)}</option>`).join('');
   const sel=root.querySelector('#hm-mode'),q=root.querySelector('#hm-q');
   const sync=()=>{const o=sel.querySelector('[value=art]');if(STATE.mode==='art'){const s=SP().find(x=>x.id===STATE.id);o.hidden=false;o.textContent=s?s.de:'Einzelne Art';q.value=s?s.de:''}else{o.hidden=true}sel.value=STATE.mode};sync();
-  MAP=L.map(root.querySelector('#hm-map'),{minZoom:5,maxZoom:14,maxBounds:[[45.5,2],[56.8,19]],attributionControl:true}).setView(POS?POS.c:[51.2,10.4],POS?POS.z:6);
+  MAP=L.map(root.querySelector('#hm-map'),{minZoom:5,maxZoom:17,maxBounds:[[45.5,2],[56.8,19]],attributionControl:true}).setView(POS?POS.c:[51.2,10.4],POS?POS.z:6);
   MAP.on('moveend',()=>{POS={c:MAP.getCenter(),z:MAP.getZoom()}});
   MAP.attributionControl.setPrefix(false);
-  L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'© <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a>'}).addTo(MAP);
+  const bases={osm:L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'© <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a>'}),
+    sat:L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',{maxZoom:19,maxNativeZoom:18,attribution:'Satellitenbild © Esri, Maxar, Earthstar Geographics'})};
+  const trees=L.tileLayer.wms(DLR_WMS,{layers:'TREE_SPECIES_DE_2022',format:'image/png',transparent:true,version:'1.1.1',opacity:.8,maxZoom:19,attribution:'Baumarten © DLR (CC BY 4.0)'});
+  const lay=()=>{for(const k in bases){if(k===OPT.base){if(!MAP.hasLayer(bases[k]))bases[k].addTo(MAP)}else if(MAP.hasLayer(bases[k]))MAP.removeLayer(bases[k])}
+    if(OPT.trees){if(!MAP.hasLayer(trees))trees.addTo(MAP)}else if(MAP.hasLayer(trees))MAP.removeLayer(trees);
+    root.querySelectorAll('.hm-lay [data-b]').forEach(c=>c.classList.toggle('on',c.dataset.b===OPT.base));
+    root.querySelector('#hm-trees').classList.toggle('on',!!OPT.trees);root.querySelector('#hm-tleg').hidden=!OPT.trees;
+    root.querySelector('#hm-op').value=OPT.op;if(OVER)OVER.setOpacity(OPT.op/100)};
+  lay();
+  root.querySelectorAll('.hm-lay [data-b]').forEach(c=>c.addEventListener('click',()=>{OPT.base=c.dataset.b;saveOpt();lay()}));
+  root.querySelector('#hm-trees').addEventListener('click',()=>{OPT.trees=!OPT.trees;if(OPT.trees){if(OPT.op>35){OPT.opPrev=OPT.op;OPT.op=35}}else if(OPT.opPrev){OPT.op=OPT.opPrev;delete OPT.opPrev}saveOpt();lay()});
+  root.querySelector('#hm-op').addEventListener('input',e=>{OPT.op=+e.target.value;delete OPT.opPrev;if(OVER)OVER.setOpacity(OPT.op/100)});
+  root.querySelector('#hm-op').addEventListener('change',saveOpt);
   MAP.on('click',e=>{const i=cellAt(e.latlng.lat,e.latlng.lng);if(i>=0)detail(root,i)});
   sel.addEventListener('change',()=>{if(sel.value!=='art'){STATE={mode:sel.value,id:null};q.value='';if(location.hash.startsWith('#karte-'))history.replaceState(null,'','#karte');sync();update(root)}});
-  const pick=()=>{const v=q.value.trim().toLowerCase();if(!v)return;const s=SP().find(x=>x.de.toLowerCase()===v||x.sci.toLowerCase()===v);if(s&&!(STATE.mode==='art'&&STATE.id===s.id)){STATE={mode:'art',id:s.id};history.replaceState(null,'','#karte-'+s.id);sync();update(root)}};
-  q.addEventListener('change',pick);q.addEventListener('input',pick);
+  /* Artsuche mit Vorschlagsliste direkt unter dem Feld */
+  const sug=root.querySelector('#hm-sug');let hits=[],act=-1;
+  const nrm=t=>String(t||'').toLowerCase().replace(/ä/g,'a').replace(/ö/g,'o').replace(/ü/g,'u').replace(/ß/g,'ss');
+  const find=v=>{const n=nrm(v.trim());if(!n)return [];const r=[];
+    for(const s of SP()){const names=[s.de,s.sci,...(s.alt||[]),...(s.syn||[])].map(nrm);let b=9;
+      names.forEach((t,k)=>{const i=t.indexOf(n);if(i<0)return;const w=i===0?0:/[\s\-]/.test(t[i-1])?1:2;if(w===2&&k>0)return;const sc=w+(k===0?0:k===1?.3:.6);if(sc<b)b=sc});
+      if(b<9)r.push([b,s])}
+    return r.sort((a,b)=>a[0]-b[0]||a[1].de.localeCompare(b[1].de,'de')).slice(0,8).map(x=>x[1])};
+  const close=()=>{sug.hidden=true;q.setAttribute('aria-expanded','false');act=-1};
+  const show=()=>{hits=find(q.value);act=-1;if(!q.value.trim()){close();return}
+    sug.innerHTML=hits.length?hits.map((s,i)=>`<div role="option" data-i="${i}">${esc(s.de)}<i>${esc(s.sci)}</i></div>`).join(''):'<p>Keine Art gefunden.</p>';
+    sug.hidden=false;q.setAttribute('aria-expanded','true')};
+  const mark=()=>{[...sug.children].forEach((d,i)=>d.classList.toggle('act',i===act));const d=sug.children[act];if(d&&d.scrollIntoView)d.scrollIntoView({block:'nearest'})};
+  const choose=s=>{close();q.blur();if(!s)return;STATE={mode:'art',id:s.id};history.replaceState(null,'','#karte-'+s.id);sync();update(root)};
+  q.addEventListener('input',show);q.addEventListener('focus',()=>{if(q.value.trim()){q.select();show()}});
+  q.addEventListener('keydown',e=>{if(e.key==='Escape'){close();return}if(sug.hidden||!hits.length)return;
+    if(e.key==='ArrowDown'){e.preventDefault();act=(act+1)%hits.length;mark()}else if(e.key==='ArrowUp'){e.preventDefault();act=(act-1+hits.length)%hits.length;mark()}
+    else if(e.key==='Enter'){e.preventDefault();choose(hits[act<0?0:act])}});
+  sug.addEventListener('pointerdown',e=>{const d=e.target.closest('[data-i]');if(d){e.preventDefault();choose(hits[+d.dataset.i])}});
+  q.addEventListener('blur',()=>setTimeout(()=>{close();sync()},150));
   root.querySelector('#hm-loc').addEventListener('click',()=>{if(!navigator.geolocation)return;navigator.geolocation.getCurrentPosition(p=>{const la=p.coords.latitude,lo=p.coords.longitude;MAP.setView([la,lo],11);const i=cellAt(la,lo);if(i>=0)detail(root,i)},()=>{stand.textContent+=' · Standort nicht verfügbar'},{timeout:10000,maximumAge:600000})});
   await update(root);
 }

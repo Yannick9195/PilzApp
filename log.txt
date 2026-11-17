@@ -1,0 +1,26 @@
+Baumarten: 65270 x 88222 uint16 CRS EPSG:3035 nodata 999.0 Pixel (10.0, 10.0) Blöcke (512, 512)
+  Zeile 0/88222  1 s
+  Zeile 10000/88222  17 s
+  Zeile 20000/88222  33 s
+  Zeile 30000/88222  50 s
+  Zeile 40000/88222  67 s
+  Zeile 50000/88222  84 s
+  Zeile 60000/88222  101 s
+  Zeile 70000/88222  118 s
+  Zeile 80000/88222  134 s
+  Werte in Stichprobe: {999: 9795334, 5: 466765, 0: 452874, 1: 408739, 6: 222767, 9: 157293, 666: 141319, 2: 110164, 8: 71974, 3: 68382, 7: 63708, 4: 41956}
+  kiefer     Anteil an der Rasterfläche: 4.08 %
+  fichte     Anteil an der Rasterfläche: 3.31 %
+  douglasie  Anteil an der Rasterfläche: 1.00 %
+  laerche    Anteil an der Rasterfläche: 0.64 %
+  tanne      Anteil an der Rasterfläche: 0.37 %
+  buche      Anteil an der Rasterfläche: 4.17 %
+  eiche      Anteil an der Rasterfläche: 2.14 %
+  birke      Anteil an der Rasterfläche: 0.48 %
+  erle       Anteil an der Rasterfläche: 0.61 %
+  sonst      Anteil an der Rasterfläche: 1.50 %
+  verlust    Anteil an der Rasterfläche: 1.38 %
+pH 0-5 cm: 159246 x 58034 int16 nodata -32768.0 CRS PROJCS["Interrupted_Goode_Homolosine",GEOGCS["GCS_WGS_1984 e
+pH 5-15 cm: 159246 x 58034 int16 nodata -32768.0 CRS PROJCS["Interrupted_Goode_Homolosine",GEOGCS["GCS_WGS_1984 e
+  pH: Mittel 5.87, Spanne 4.0–7.6, gültig 87 %
+fertig: 2090 KB

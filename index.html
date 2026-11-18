@@ -427,9 +427,15 @@ ACT.fav=a=>{const id=a.dataset.id;P().fav[id]=!P().fav[id];if(!P().fav[id])delet
 ACT.learnOne=a=>startQuiz([a.dataset.id],BY[a.dataset.id].de,true);
 ACT.cmpWith=a=>{const s=BY[a.dataset.id];const ids=[s.id,...(s.vw||[]).filter(v=>v.id&&BY[v.id]).map(v=>v.id)];P().cmp=[...new Set(ids)].slice(0,4);save();location.hash='vergleich'};
 /* ---------- Gattungen ---------- */
-function vGattungen(){const names=[...new Set([...Object.keys(GSP),...GE.map(g=>g.name)])].sort((a,b)=>a.localeCompare(b));
- view.innerHTML=`<h1>Gattungen</h1><p class="mut small">Gattungsporträts mit Kennzeichen, Sporenpulver, Ökologie und Speisewert. <b>★</b> = Gattung der DGfM-Liste „Gattungskenntnisse“.</p><input class="inp" id="gq" placeholder="Gattung suchen (lateinisch oder deutsch) …" style="margin:10px 0"><div class="glist" id="gl"></div>`;
- const draw=()=>{const q=norm($('#gq').value);$('#gl').innerHTML=names.filter(n=>!q||norm(n+' '+gdeOf(n)).includes(q)).map(n=>{const g=GBY[n.toLowerCase()];return `<a href="#gattung-${esc(n.toLowerCase())}"><span><b>${g&&g.dgfm?'★ ':''}<i>${esc(n)}</i></b> ${gdeOf(n)?`<span class="mut">– ${esc(gdeOf(n))}</span>`:''}</span><span class="b">${(GSP[n]||[]).length} Arten</span></a>`}).join('')};
+function vGattungen(){const all=[...new Set([...Object.keys(GSP),...GE.map(g=>g.name)])];
+ const ORD={sci:all.slice().sort((a,b)=>a.localeCompare(b)),de:all.slice().sort((a,b)=>gdeOf(a).localeCompare(gdeOf(b),'de')||a.localeCompare(b))};
+ const st=P().settings;let mode=st.gSort==='de'?'de':'sci';
+ view.innerHTML=`<h1>Gattungen</h1><p class="mut small">Gattungsporträts mit Kennzeichen, Sporenpulver, Ökologie und Speisewert. <b>★</b> = Gattung der DGfM-Liste „Gattungskenntnisse“.</p><input class="inp" id="gq" placeholder="Gattung suchen (lateinisch oder deutsch) …" style="margin:10px 0"><div class="row small mut" style="margin:0 0 12px"><span id="gcnt"></span><span class="sp"></span><select class="inp small" id="gsort" aria-label="Sortierung der Gattungen"><option value="sci">Wissenschaftlich A–Z</option><option value="de">Deutsch A–Z</option></select></div><div class="glist" id="gl"></div>`;
+ const draw=()=>{const q=norm($('#gq').value);const L=ORD[mode].filter(n=>!q||norm(n+' '+gdeOf(n)).includes(q));$('#gcnt').textContent=`${L.length} von ${all.length} Gattungen`;
+  $('#gl').innerHTML=L.map(n=>{const g=GBY[n.toLowerCase()],de=gdeOf(n),star=g&&g.dgfm?'★ ':'';
+   const head=mode==='de'&&de?`<b>${star}${esc(de)}</b> <span class="mut">– <i>${esc(n)}</i></span>`:`<b>${star}<i>${esc(n)}</i></b> ${de?`<span class="mut">– ${esc(de)}</span>`:''}`;
+   const k=(GSP[n]||[]).length;return `<a href="#gattung-${esc(n.toLowerCase())}"><span>${head}</span><span class="b">${k} ${k===1?'Art':'Arten'}</span></a>`}).join('')};
+ $('#gsort').value=mode;$('#gsort').onchange=e=>{mode=e.target.value==='de'?'de':'sci';st.gSort=mode;save();draw()};
  $('#gq').oninput=draw;draw()}
 function vGattung(gid){const g=GBY[gid];const name=g?g.name:Object.keys(GSP).find(n=>n.toLowerCase()===gid)||gid;const ids=(GSP[name]||[]).slice();(g&&g.incl||[]).forEach(x=>(GSP[x]||[]).forEach(i=>ids.includes(i)||ids.push(i)));
  const sec=(l,t)=>t?`<dt>${l}</dt><dd>${esc(t)}</dd>`:'';

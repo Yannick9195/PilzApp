@@ -34,6 +34,34 @@ try{Object.assign(OPT,JSON.parse(localStorage.getItem('pw_karte')||'{}'))}catch(
 const saveOpt=()=>{try{localStorage.setItem('pw_karte',JSON.stringify(OPT))}catch(e){}};
 const TCOL={kiefer:'#becd46',fichte:'#50b978',douglasie:'#5f7387',laerche:'#3cb4c8',tanne:'#1e6405',buche:'#e6323c',eiche:'#f0dc00',birke:'#bea078',erle:'#fa8c3c',sonst:'#be64c8',verlust:'#000000'};
 const DLR_WMS='https://geoservice.dlr.de/eoc/land/wms';
+/* Baumarten-Filter: der DLR-Dienst liefert je Klasse genau eine Farbe (wie TCOL, ohne Kantenglättung).
+   Die Kacheln werden deshalb selbst geladen und nicht gewählte Klassen im Browser durchsichtig gemacht. */
+const TKEYS=Object.keys(TCOL),TPACK=Object.fromEntries(TKEYS.map(k=>[k,parseInt(TCOL[k].slice(1),16)]));
+const tSel=()=>Array.isArray(OPT.tsel)?TKEYS.filter(k=>OPT.tsel.includes(k)):TKEYS.slice();
+let TKEEP=null,TreeWMS=null;
+function tFilter(){const s=tSel();TKEEP=s.length===TKEYS.length?null:new Set(s.map(k=>TPACK[k]))}
+function tPaint(c){const s=c._src;if(!s)return;const x=c.getContext('2d');if(!TKEEP){x.putImageData(s,0,0);return}
+  const o=x.createImageData(s.width,s.height),a=s.data,d=o.data;
+  for(let i=0;i<a.length;i+=4)if(a[i+3]&&TKEEP.has(a[i]<<16|a[i+1]<<8|a[i+2])){d[i]=a[i];d[i+1]=a[i+1];d[i+2]=a[i+2];d[i+3]=a[i+3]}
+  x.putImageData(o,0,0)}
+function decodeImg(b){if(window.createImageBitmap)return createImageBitmap(b);
+  return new Promise((res,rej)=>{const u=URL.createObjectURL(b),i=new Image();i.onload=()=>{URL.revokeObjectURL(u);res(i)};i.onerror=()=>{URL.revokeObjectURL(u);rej(new Error('Bild nicht lesbar'))};i.src=u})}
+function treeLayer(opts){
+  if(!TreeWMS)TreeWMS=L.TileLayer.WMS.extend({createTile(coords,done){
+    const c=document.createElement('canvas'),sz=this.getTileSize(),ac=window.AbortController?new AbortController():null;c.width=sz.x;c.height=sz.y;c._ac=ac;c.complete=false;
+    fetch(this.getTileUrl(coords),ac?{signal:ac.signal}:{}).then(r=>{if(!r.ok)throw new Error('HTTP '+r.status);return r.blob()}).then(decodeImg).then(img=>{
+      const x=c.getContext('2d',{willReadFrequently:true});x.drawImage(img,0,0,c.width,c.height);if(img.close)img.close();
+      try{c._src=x.getImageData(0,0,c.width,c.height);tPaint(c)}catch(e){}
+      c.complete=true;done(null,c)}).catch(e=>{c.complete=true;if(!(e&&e.name==='AbortError'))done(e,c)});
+    return c}});
+  const l=new TreeWMS(DLR_WMS,opts);l.on('tileunload tileabort',e=>{const t=e.tile;if(t){if(t._ac)t._ac.abort();t._src=null}});return l}
+function tRepaint(l){for(const k in l._tiles){const t=l._tiles[k];if(t&&t.el)tPaint(t.el)}}
+/* Bewertung nur für die gewählten Baumarten – gilt, solange die Baumarten-Ebene eingeschaltet ist und nicht alle Arten gewählt sind.
+   SMASK[j] = 1/0 je Klasse aus TREE; Kahl-/Schadfläche ist keine Baumart und zählt für die Bewertung nicht. */
+let SMASK=null,UPT=0;
+function sFilter(){const ts=tSel(),on=!!OPT.trees&&TREE.some(t=>!ts.includes(t)),k=on?TREE.map(t=>ts.includes(t)?1:0).join(''):'';
+  if(k===(SMASK?SMASK.key:''))return false;SMASK=on?Object.assign(Float32Array.from(k,Number),{key:k}):null;return true}
+function reUpdate(root){clearTimeout(UPT);UPT=setTimeout(()=>{if(root.isConnected)update(root)},300)}
 
 /* ---------- Daten laden ---------- */
 async function mosaic(base,name){
@@ -93,13 +121,14 @@ const frostName=t=>t>=0?null:t>=-5?'leichter Frost':t>=-10?'mäßiger Frost':t>=
 /* Rohwerte einer Zelle */
 function cell(i){const {d,s}=DATA,L=d.L;if(L.peff[i]===255)return null;
   const o={peff:L.peff[i]/2,recent:L.recent[i]===255?null:L.recent[i]/2,t15:L.t15[i]===255?null:L.t15[i]/4-20,tmin:L.tmin5[i]===255?null:L.tmin5[i]/4-20,sm:L.sm[i]===255?null:L.sm[i]/2,fmin:fr(L.fmin5,i),fseas:fr(L.fseas,i),tr:null,ph:null,forest:null,loss:0};
-  if(s&&s.L.kiefer[i]!==255){o.tr=TREE.map(t=>s.L[t][i]/250);o.loss=s.L.verlust?s.L.verlust[i]/250:0;o.forest=o.tr.reduce((x,y)=>x+y,0);o.ph=s.L.ph[i]===255?null:s.L.ph[i]/40+3}
+  if(s&&s.L.kiefer[i]!==255){o.tr=TREE.map(t=>s.L[t][i]/250);o.loss=s.L.verlust?s.L.verlust[i]/250:0;o.forest=o.tr.reduce((x,y)=>x+y,0);o.ph=s.L.ph[i]===255?null:s.L.ph[i]/40+3;
+    if(SMASK){o.trAll=o.tr;o.forestAll=o.forest;o.tr=o.tr.map((v,j)=>v*SMASK[j]);o.forest=o.tr.reduce((x,y)=>x+y,0);o.flt=true}}
   return o}
 const fWet=c=>{const fp=ss(c.peff,CFG.peff[0],CFG.peff[1]);return c.sm==null?fp:CFG.wRain*fp+(1-CFG.wRain)*ss(c.sm,CFG.sm[0],CFG.sm[1])};
 const fFrost=(c,hardy)=>hardy||c.tmin==null?1:c.tmin<CFG.frost[2]?CFG.frost[3]:c.tmin<CFG.frost[0]?CFG.frost[1]:1;
 function fTemp(c,m){if(c.t15==null)return 1;let f=0;for(const [w,k] of m.win){const v=trap(c.t15,w)*k;if(v>f)f=v}return f*fFrost(c,m.hardy)}
 function fSite(c,m){if(!c.tr)return 1;let h=0;for(let j=0;j<10;j++)h+=m.a[j]*c.tr[j];
-  const hf=Math.min(1,Math.sqrt(h/CFG.hFull)),ho=m.open*Math.max(0,1-c.forest-c.loss);return Math.max(hf,ho)}
+  const hf=Math.min(1,Math.sqrt(h/CFG.hFull)),ho=c.flt?0:m.open*Math.max(0,1-c.forest-c.loss);return Math.max(hf,ho)}
 function fPh(c,m){if(!m.ph||c.ph==null)return 1;const [a,b]=m.ph.t==='sauer'?CFG.phSauer:CFG.phKalk;
   return 1-clamp((c.ph-a)/(b-a))*(1-CFG.phMin)*m.ph.w}
 function factors(c,s){const m=model(s);return {saison:season(m.mo,DATA.date),standort:fSite(c,m),boden:fPh(c,m),feuchte:fWet(c),temperatur:fTemp(c,m)}}
@@ -110,8 +139,8 @@ const edible=s=>s.tr&&s.tr.sw&&s.tr.sw[0]==='e';
 /* Schnelle Rasterberechnung (ohne Objekte je Zelle) */
 function grid(list){
   const {d,s,g}=DATA,L=d.L,N=g.W*g.H,out=new Float32Array(N).fill(-1),best=list&&list.length>1?new Int16Array(N).fill(-1):null;
-  const tr=s?TREE.map(t=>s.L[t]):null,loss=s&&s.L.verlust,ph=s&&s.L.ph;
-  const P=CFG.peff,S=CFG.sm,ms=list?list.map(sp=>({m:model(sp),sea:season(model(sp).mo,DATA.date)})).filter(x=>x.sea>0):null;
+  const tr=s?TREE.map(t=>s.L[t]):null,loss=s&&s.L.verlust,ph=s&&s.L.ph,mk=tr&&SMASK?SMASK:null;
+  const P=CFG.peff,S=CFG.sm,ms=list?list.map(sp=>{const m=model(sp);return {m,a:mk?m.a.map((v,j)=>v*mk[j]):m.a,sea:season(m.mo,DATA.date)}}).filter(x=>x.sea>0):null;
   if(list&&!ms.length){for(let i=0;i<N;i++)if(L.peff[i]!==255)out[i]=0;return {out,best,idx:[]}}
   const idx=list?list.map((sp,k)=>k).filter(k=>season(model(list[k]).mo,DATA.date)>0):[];
   for(let i=0;i<N;i++){
@@ -119,15 +148,15 @@ function grid(list){
     const fp=ss(L.peff[i]/2,P[0],P[1]),wet=L.sm[i]===255?fp:CFG.wRain*fp+(1-CFG.wRain)*ss(L.sm[i]/2,S[0],S[1]);
     const t15=L.t15[i]===255?null:L.t15[i]/4-20,tmin=L.tmin5[i]===255?null:L.tmin5[i]/4-20;
     const frost=tmin==null?1:tmin<CFG.frost[2]?CFG.frost[3]:tmin<CFG.frost[0]?CFG.frost[1]:1;
-    const hasS=tr&&tr[0][i]!==255;let forest=0;if(hasS)for(let j=0;j<10;j++)forest+=tr[j][i];forest/=250;
-    if(!list){const t=t15==null?1:trap(t15,CFG.temp.allg)*frost;out[i]=100*wet*t*(hasS?Math.min(1,Math.sqrt(forest/CFG.hFull)):1);continue}
+    const hasS=tr&&tr[0][i]!==255;let forest=0,fsel=0;if(hasS){for(let j=0;j<10;j++){const v=tr[j][i];forest+=v;if(mk)fsel+=v*mk[j]}}forest/=250;fsel/=250;
+    if(!list){const t=t15==null?1:trap(t15,CFG.temp.allg)*frost;out[i]=100*wet*t*(hasS?Math.min(1,Math.sqrt((mk?fsel:forest)/CFG.hFull)):1);continue}
     if(wet<=0){out[i]=0;continue}
-    const pH=hasS&&ph[i]!==255?ph[i]/40+3:null,openF=hasS?Math.max(0,1-forest-(loss?loss[i]/250:0)):0;
+    const pH=hasS&&ph[i]!==255?ph[i]/40+3:null,openF=hasS&&!mk?Math.max(0,1-forest-(loss?loss[i]/250:0)):0;
     let mx=0,bi=-1;
     for(let k=0;k<ms.length;k++){const m=ms[k].m;
       let tf=1;if(t15!=null){tf=0;for(const [w,q] of m.win){const v=trap(t15,w)*q;if(v>tf)tf=v}if(!m.hardy)tf*=frost}
       if(tf<=0)continue;
-      let site=1;if(hasS){let h=0;for(let j=0;j<10;j++)h+=m.a[j]*tr[j][i];h/=250;site=Math.max(Math.min(1,Math.sqrt(h/CFG.hFull)),m.open*openF)}
+      let site=1;if(hasS){const a=ms[k].a;let h=0;for(let j=0;j<10;j++)h+=a[j]*tr[j][i];h/=250;site=Math.max(Math.min(1,Math.sqrt(h/CFG.hFull)),m.open*openF)}
       if(site<=0)continue;
       let pf=1;if(m.ph&&pH!=null){const a=m.ph.t==='sauer'?CFG.phSauer:CFG.phKalk;pf=1-clamp((pH-a[0])/(a[1]-a[0]))*(1-CFG.phMin)*m.ph.w}
       const v=100*ms[k].sea*site*pf*wet*tf;if(v>mx){mx=v;bi=idx[k]}}
@@ -156,7 +185,10 @@ function css(){if(document.getElementById('hm-css'))return;const s=document.crea
 .hm-busy[hidden]{display:none}.hm-busy{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,.55);z-index:900;font-weight:600;color:#29241d}
 .hm-lay{align-items:center;margin:8px 0 2px}.hm-lay .chip{cursor:pointer}.hm-lay .sep{width:1px;align-self:stretch;background:var(--line);margin:0 2px}
 .hm-op{display:flex;align-items:center;gap:8px;font-size:.84rem;color:var(--mut);flex:1 1 170px}.hm-op input{flex:1;min-width:80px;padding:0;accent-color:var(--moss2)}
-.hm-tleg{display:flex;flex-wrap:wrap;gap:4px 12px;font-size:.8rem;margin:6px 2px}.hm-tleg[hidden]{display:none}.hm-tleg span{display:inline-flex;align-items:center;gap:5px}.hm-tleg i{width:12px;height:12px;border-radius:3px;display:inline-block;border:1px solid rgba(0,0,0,.25)}
+.hm-tleg{display:flex;flex-wrap:wrap;align-items:center;gap:6px;font-size:.8rem;margin:6px 2px}.hm-tleg[hidden]{display:none}
+.hm-tk{display:inline-flex;align-items:center;gap:5px;font:inherit;font-size:.8rem;line-height:1.2;padding:4px 10px 4px 7px;border:1px solid var(--line);border-radius:999px;background:var(--card);color:var(--ink);cursor:pointer}
+.hm-tk i{width:12px;height:12px;border-radius:3px;display:inline-block;border:1px solid rgba(0,0,0,.3);flex:none}.hm-tk[aria-pressed=false]{opacity:.45}.hm-tk[aria-pressed=false] i{background:transparent!important}
+.hm-tq{font:inherit;font-size:.8rem;padding:4px 6px;border:0;background:none;color:var(--moss2);text-decoration:underline;cursor:pointer}.hm-tleg small{flex-basis:100%;color:var(--mut);font-size:.76rem}
 .hm-leg{display:flex;align-items:center;gap:10px;margin:10px 2px;font-size:.8rem;color:var(--mut)}.hm-leg i{flex:1;height:10px;border-radius:6px;background:linear-gradient(90deg,#fff0aa,#fdd470 15%,#f9a03f 35%,#e8602c 55%,#c1272d 75%,#6a0d47)}
 .hm-bar{display:grid;grid-template-columns:110px 1fr 44px;gap:8px;align-items:center;font-size:.86rem;margin:5px 0}.hm-bar b{font-weight:500}.hm-bar span{height:8px;border-radius:5px;background:var(--chip);overflow:hidden;display:block}.hm-bar span i{display:block;height:100%;background:var(--moss2)}.hm-bar em{font-style:normal;text-align:right;color:var(--mut)}
 .hm-kv{display:grid;grid-template-columns:auto 1fr;gap:3px 14px;font-size:.88rem;margin:6px 0}.hm-kv span{color:var(--mut)}
@@ -179,11 +211,12 @@ async function update(root){
   if(note){let t='';if(STATE.mode==='art'){const s=SP().find(x=>x.id===STATE.id);if(s){const m=model(s),sea=season(m.mo,DATA.date);
       if(sea<=0)t=`${esc(s.de)} hat laut Steckbrief gerade keine Saison – die Karte bleibt deshalb leer.`;
       else if(m.vague)t='Für diese Art ist kein Lebensraum hinterlegt – bewertet wird nur das Wetter.';
-      else if(!m.forest)t='Art des Offenlands: Wiese, Acker und Siedlung kann die Karte nicht unterscheiden – außerhalb des Waldes zählt nur das Wetter.'}}
+      else if(!m.forest)t=SMASK&&DATA.s?'Art des Offenlands – solange der Baumarten-Filter aktiv ist, bleibt die Karte für sie leer.':'Art des Offenlands: Wiese, Acker und Siedlung kann die Karte nicht unterscheiden – außerhalb des Waldes zählt nur das Wetter.'}}
     else if(STATE.mode==='speise')t='Gezeigt wird je Zelle der Wert der Speisepilz-Art, die dort gerade am besten passt.';
-    else t='Allgemeine Lage: Feuchte und Temperatur, gewichtet mit dem Waldanteil der Zelle.';
+    else t=SMASK&&DATA.s?'Allgemeine Lage: Feuchte und Temperatur, gewichtet mit dem Anteil der gewählten Baumarten in der Zelle.':'Allgemeine Lage: Feuchte und Temperatur, gewichtet mit dem Waldanteil der Zelle.';
     if(!DATA.s)t+=' Die Standortdaten (Baumarten, Boden-pH) fehlen noch – bewertet wird vorerst nur das Wetter.';
-    note.textContent=t}
+    else if(SMASK){const n=TREE.filter((x,j)=>SMASK[j]).map(x=>TREEDE[x]);t+=n.length?` Baumarten-Filter: bewertet werden nur Bestände mit ${n.join(', ')}.`:' Baumarten-Filter: keine Baumart gewählt – die Bewertung bleibt leer.'}
+    note.textContent=t.trim()}
   if(LASTCELL>=0)detail(root,LASTCELL);
 }
 function fsince(){const f=DATA.d.meta.frost_since;if(!f)return 'Saisonbeginn';const [y,m,d]=f.split('-');return `${+d}.${+m}.`}
@@ -196,8 +229,8 @@ function detail(root,i){
   if(STATE.mode==='art'){const s=SP().find(x=>x.id===STATE.id);if(s){const f=factors(c,s);h+=bar('Saison',f.saison)+bar('Standort',f.standort)+bar('Boden-pH',f.boden)+bar('Feuchte',f.feuchte)+bar('Temperatur',f.temperatur)}}
   else if(STATE.mode==='speise'&&BEST&&BEST.idx[i]>=0){const s=BEST.list[BEST.idx[i]];h+=`<p class="small">Beste Art hier: <a href="#karte-${esc(s.id)}" style="text-decoration:underline">${esc(s.de)}</a></p>`}
   h+=`<div class="hm-kv"><span>Wirksamer Niederschlag</span><b>${num(c.peff,1)} mm</b>${c.recent!=null?`<span>Regen der letzten 3 Tage</span><b>${num(c.recent,1)} mm <small class="mut">(wirkt erst in einigen Tagen)</small></b>`:''}${c.sm!=null?`<span>Bodenfeuchte (0–30 cm)</span><b>${num(c.sm)} % nFK</b>`:''}${c.t15!=null?`<span>Temperatur, Mittel 15 Tage</span><b>${num(c.t15,1)} °C</b>`:''}${c.tmin!=null?`<span>Kältester Tag (letzte 5)</span><b>${c.fmin!=null?`Tagesmittel ${num(c.tmin,1)} °C · Tiefstwert ${num(c.fmin,1)} °C <small class="mut">(${frostName(c.fmin)||'kein Frost'})</small>`:`${num(c.tmin,1)} °C`}</b>`:''}${c.fseas!=null?`<span>Frost seit ${fsince()}</span><b>${frostName(c.fseas)?`${cap(frostName(c.fseas))} · Tiefstwert ${num(c.fseas,1)} °C`:`Noch keiner · Tiefstwert ${num(c.fseas,1)} °C`} <small class="mut">(Luft in 2 m Höhe)</small></b>`:''}`;
-  if(c.tr){const t=TREE.map((n,j)=>[n,c.tr[j]]).filter(x=>x[1]>=.01).sort((a,b)=>b[1]-a[1]);
-    h+=`<span>Wald in der Zelle</span><b>${num(c.forest*100)} %${t.length?' – '+t.slice(0,5).map(x=>`${TREEDE[x[0]]} ${num(x[1]*100)} %`).join(', '):''}</b>${c.loss>=.01?`<span>Kahl-/Schadfläche</span><b>${num(c.loss*100)} %</b>`:''}${c.ph!=null?`<span>Boden-pH (0–15 cm)</span><b>${num(c.ph,1)}</b>`:''}`}
+  if(c.tr){const ta=c.trAll||c.tr,fa=c.flt?c.forestAll:c.forest,t=TREE.map((n,j)=>[n,ta[j]]).filter(x=>x[1]>=.01).sort((a,b)=>b[1]-a[1]);
+    h+=`<span>Wald in der Zelle</span><b>${num(fa*100)} %${t.length?' – '+t.slice(0,5).map(x=>`${TREEDE[x[0]]} ${num(x[1]*100)} %`).join(', '):''}</b>${c.flt?`<span>Davon gewählte Baumarten</span><b>${num(c.forest*100)} % der Zelle</b>`:''}${c.loss>=.01?`<span>Kahl-/Schadfläche</span><b>${num(c.loss*100)} %</b>`:''}${c.ph!=null?`<span>Boden-pH (0–15 cm)</span><b>${num(c.ph,1)}</b>`:''}`}
   h+='</div>';
   const top=SP().map(s=>[s,total(factors(c,s))]).filter(x=>x[1]>=3).sort((a,b)=>b[1]-a[1]).slice(0,6);
   h+=`<h3 style="margin:12px 0 2px">Was hier gerade am ehesten wächst</h3>`+(top.length?`<div class="hm-top">${top.map(([s,x])=>`<a href="#karte-${esc(s.id)}"><span>${esc(s.de)} <i class="mut">${esc(s.sci)}</i></span><em>${Math.round(x)}</em></a>`).join('')}</div>`:'<p class="mut small">Zurzeit passt hier laut Modell keine Art gut.</p>');
@@ -212,13 +245,13 @@ async function view(root,id){
   <div class="hm-ctl"><select id="hm-mode" aria-label="Anzeige"><option value="wetter">Pilzwetter allgemein</option><option value="speise">Speisepilze</option><option value="art" hidden>Einzelne Art</option></select>
   <div class="hm-sw"><input id="hm-q" type="search" placeholder="Art suchen, z. B. Steinpilz" aria-label="Art suchen" autocomplete="off" role="combobox" aria-expanded="false" aria-controls="hm-sug"><div class="hm-sug" id="hm-sug" role="listbox" hidden></div></div><button class="btn sm" id="hm-loc" type="button">◎ Mein Standort</button></div>
   <div class="hm-map" id="hm-map"><div class="hm-busy">Berechne Karte …</div></div>
-  <div class="hm-ctl hm-lay"><span class="chip" data-b="osm">Karte</span><span class="chip" data-b="sat">Satellit</span><i class="sep"></i><span class="chip" id="hm-trees">Baumarten (10 m)</span><label class="hm-op">Bewertung <input type="range" id="hm-op" min="0" max="100" step="5" aria-label="Deckkraft der Bewertung"></label></div>
-  <div class="hm-tleg" id="hm-tleg" hidden>${Object.keys(TCOL).map(k=>`<span><i style="background:${TCOL[k]}"></i>${TREEDE[k]}</span>`).join('')}</div>
+  <div class="hm-ctl hm-lay"><span class="chip" data-b="osm">Karte</span><span class="chip" data-b="sat">Satellit</span><i class="sep"></i><span class="chip" id="hm-trees">Baumarten (10 m)</span><label class="hm-op" title="Transparenz der farbigen Bewertung">Transparenz <input type="range" id="hm-op" min="0" max="100" step="5" aria-label="Transparenz der Bewertung"></label></div>
+  <div class="hm-tleg" id="hm-tleg" hidden><button type="button" class="hm-tq" data-tq="all">Alle</button><button type="button" class="hm-tq" data-tq="none">Keine</button>${TKEYS.map(k=>`<button type="button" class="hm-tk" data-k="${k}" aria-pressed="true"><i style="background:${TCOL[k]}"></i>${TREEDE[k]}</button>`).join('')}<small>Antippen blendet eine Baumart ein oder aus. Die farbige Bewertung gilt dann nur für Bestände der gewählten Baumarten.</small></div>
   <div class="hm-leg"><span>gering</span><i></i><span>sehr gut</span></div>
   <p class="small mut" id="hm-note" style="margin:0 2px 8px"></p>
   <div class="panel" id="hm-detail"><p class="mut small" style="margin:0">Tippe auf die Karte, um die Werte einer Zelle und die dort passenden Arten zu sehen.</p></div>
   <div class="panel"><h3 style="margin-top:0">So entsteht die Bewertung</h3><p class="small">Der Wert (0–100) ist eine <b>Schätzung</b> aus Saison laut Steckbrief, Baumbestand, Boden-pH, Feuchte und Temperatur – kein Fundnachweis. Feuchte: wirksamer Niederschlag (Regen vor 4–5 Tagen zählt halb, vor 6–9 Tagen voll, vor 10–14 Tagen zu 70 %, vor 15–20 Tagen zu 30 %; die letzten 3 Tage noch nicht) und Bodenfeuchte. Die Baumartenkarte kennt nur die vorherrschende Art je 10-m-Fläche; Hainbuche, Linde, Pappel u. a. stecken in „sonstige Bäume“.</p>
-  <p class="small">Die Bewertung gilt für die ganze Zelle von etwa 1 × 1 km. Wo darin welcher Bestand steht, zeigt die Ebene <b>Baumarten (10 m)</b> – am besten hineinzoomen und die Bewertung mit dem Regler abblenden.</p>
+  <p class="small">Die Bewertung gilt für die ganze Zelle von etwa 1 × 1 km. Wo darin welcher Bestand steht, zeigt die Ebene <b>Baumarten (10 m)</b> – am besten hineinzoomen und die Bewertung mit dem Regler „Transparenz“ durchsichtiger machen. In der Legende darunter lässt sich jede Baumart einzeln ein- und ausblenden; solange nicht alle gewählt sind, bewertet die Karte nur Bestände dieser Baumarten (Offenland zählt dann nicht).</p>
   <p class="tiny mut" style="margin-bottom:0">Daten: Deutscher Wetterdienst (HYRAS-DE-PRE, -TAS und -TASMIN, Bodenfeuchte AMBAV) · DLR, Tree Species Germany 2022 (CC BY 4.0) · ISRIC SoilGrids 2.0 (CC BY 4.0) · Karte © OpenStreetMap-Mitwirkende · Satellitenbild © Esri, Maxar, Earthstar Geographics</p></div>`;
   const stand=root.querySelector('#hm-stand');
   try{await Promise.all([load(),lib()])}catch(e){
@@ -233,17 +266,21 @@ async function view(root,id){
   MAP.attributionControl.setPrefix(false);
   const bases={osm:L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'© <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a>'}),
     sat:L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',{maxZoom:19,maxNativeZoom:18,attribution:'Satellitenbild © Esri, Maxar, Earthstar Geographics'})};
-  const trees=L.tileLayer.wms(DLR_WMS,{layers:'TREE_SPECIES_DE_2022',format:'image/png',transparent:true,version:'1.1.1',opacity:.8,maxZoom:19,attribution:'Baumarten © DLR (CC BY 4.0)'});
+  tFilter();sFilter();const trees=treeLayer({layers:'TREE_SPECIES_DE_2022',format:'image/png',transparent:true,version:'1.1.1',opacity:.8,maxZoom:19,zIndex:10,className:'hm-treelayer',attribution:'Baumarten © DLR (CC BY 4.0)'});
   const lay=()=>{for(const k in bases){if(k===OPT.base){if(!MAP.hasLayer(bases[k]))bases[k].addTo(MAP)}else if(MAP.hasLayer(bases[k]))MAP.removeLayer(bases[k])}
     if(OPT.trees){if(!MAP.hasLayer(trees))trees.addTo(MAP)}else if(MAP.hasLayer(trees))MAP.removeLayer(trees);
     root.querySelectorAll('.hm-lay [data-b]').forEach(c=>c.classList.toggle('on',c.dataset.b===OPT.base));
     root.querySelector('#hm-trees').classList.toggle('on',!!OPT.trees);root.querySelector('#hm-tleg').hidden=!OPT.trees;
-    root.querySelector('#hm-op').value=OPT.op;if(OVER)OVER.setOpacity(OPT.op/100)};
+    const ts=tSel();root.querySelectorAll('.hm-tk').forEach(b=>b.setAttribute('aria-pressed',ts.includes(b.dataset.k)?'true':'false'));
+    root.querySelector('#hm-op').value=100-OPT.op;if(OVER)OVER.setOpacity(OPT.op/100)};
   lay();
   root.querySelectorAll('.hm-lay [data-b]').forEach(c=>c.addEventListener('click',()=>{OPT.base=c.dataset.b;saveOpt();lay()}));
-  root.querySelector('#hm-trees').addEventListener('click',()=>{OPT.trees=!OPT.trees;if(OPT.trees){if(OPT.op>35){OPT.opPrev=OPT.op;OPT.op=35}}else if(OPT.opPrev){OPT.op=OPT.opPrev;delete OPT.opPrev}saveOpt();lay()});
-  root.querySelector('#hm-op').addEventListener('input',e=>{OPT.op=+e.target.value;delete OPT.opPrev;if(OVER)OVER.setOpacity(OPT.op/100)});
+  root.querySelector('#hm-trees').addEventListener('click',()=>{OPT.trees=!OPT.trees;if(OPT.trees){if(OPT.op>35){OPT.opPrev=OPT.op;OPT.op=35}}else if(OPT.opPrev){OPT.op=OPT.opPrev;delete OPT.opPrev}saveOpt();lay();if(sFilter())reUpdate(root)});
+  root.querySelector('#hm-op').addEventListener('input',e=>{OPT.op=100-(+e.target.value);delete OPT.opPrev;if(OVER)OVER.setOpacity(OPT.op/100)});
   root.querySelector('#hm-op').addEventListener('change',saveOpt);
+  root.querySelector('#hm-tleg').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;let s=tSel();
+    if(b.dataset.tq==='all')s=TKEYS.slice();else if(b.dataset.tq==='none')s=[];else if(b.dataset.k){const k=b.dataset.k;s=s.includes(k)?s.filter(x=>x!==k):s.concat(k)}else return;
+    OPT.tsel=s.length===TKEYS.length?null:TKEYS.filter(k=>s.includes(k));saveOpt();tFilter();lay();tRepaint(trees);if(sFilter())reUpdate(root)});
   MAP.on('click',e=>{const i=cellAt(e.latlng.lat,e.latlng.lng);if(i>=0)detail(root,i)});
   sel.addEventListener('change',()=>{if(sel.value!=='art'){STATE={mode:sel.value,id:null};q.value='';if(location.hash.startsWith('#karte-'))history.replaceState(null,'','#karte');sync();update(root)}});
   /* Artsuche mit Vorschlagsliste direkt unter dem Feld */

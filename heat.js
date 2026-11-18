@@ -44,13 +44,16 @@ function tPaint(c){const s=c._src;if(!s)return;const x=c.getContext('2d');if(!TK
   const o=x.createImageData(s.width,s.height),a=s.data,d=o.data;
   for(let i=0;i<a.length;i+=4)if(a[i+3]&&TKEEP.has(a[i]<<16|a[i+1]<<8|a[i+2])){d[i]=a[i];d[i+1]=a[i+1];d[i+2]=a[i+2];d[i+3]=a[i+3]}
   x.putImageData(o,0,0)}
+const TCACHE=new Map();   // Kachel-URL → PNG (die zuletzt benutzten ~400 Kacheln, wenige MB)
+function tGet(u,o){const b=TCACHE.get(u);if(b){TCACHE.delete(u);TCACHE.set(u,b);return Promise.resolve(b)}
+  return fetch(u,o).then(r=>{if(!r.ok)throw new Error('HTTP '+r.status);return r.blob()}).then(b=>{TCACHE.set(u,b);if(TCACHE.size>400)TCACHE.delete(TCACHE.keys().next().value);return b})}
 function decodeImg(b){if(window.createImageBitmap)return createImageBitmap(b);
   return new Promise((res,rej)=>{const u=URL.createObjectURL(b),i=new Image();i.onload=()=>{URL.revokeObjectURL(u);res(i)};i.onerror=()=>{URL.revokeObjectURL(u);rej(new Error('Bild nicht lesbar'))};i.src=u})}
 function treeLayer(opts){
   if(!TreeWMS)TreeWMS=L.TileLayer.WMS.extend({createTile(coords,done){
     const c=document.createElement('canvas'),sz=this.getTileSize(),ac=window.AbortController?new AbortController():null;c.width=sz.x;c.height=sz.y;c._ac=ac;c.complete=false;
-    fetch(this.getTileUrl(coords),ac?{signal:ac.signal}:{}).then(r=>{if(!r.ok)throw new Error('HTTP '+r.status);return r.blob()}).then(decodeImg).then(img=>{
-      const x=c.getContext('2d',{willReadFrequently:true});x.drawImage(img,0,0,c.width,c.height);if(img.close)img.close();
+    tGet(this.getTileUrl(coords),ac?{signal:ac.signal}:{}).then(decodeImg).then(img=>{
+      const x=c.getContext('2d',{willReadFrequently:true});x.imageSmoothingEnabled=false;x.drawImage(img,0,0,c.width,c.height);if(img.close)img.close();
       try{c._src=x.getImageData(0,0,c.width,c.height);tPaint(c)}catch(e){}
       c.complete=true;done(null,c)}).catch(e=>{c.complete=true;if(!(e&&e.name==='AbortError'))done(e,c)});
     return c}});
@@ -61,26 +64,45 @@ function tRepaint(l){for(const k in l._tiles){const t=l._tiles[k];if(t&&t.el)tPa
 let SMASK=null,UPT=0;
 function sFilter(){const ts=tSel(),on=!!OPT.trees&&TREE.some(t=>!ts.includes(t)),k=on?TREE.map(t=>ts.includes(t)?1:0).join(''):'';
   if(k===(SMASK?SMASK.key:''))return false;SMASK=on?Object.assign(Float32Array.from(k,Number),{key:k}):null;return true}
-function reUpdate(root){clearTimeout(UPT);UPT=setTimeout(()=>{if(root.isConnected)update(root)},300)}
+function reUpdate(root){clearTimeout(UPT);UPT=setTimeout(()=>{if(root.isConnected)update(root)},120)}
 
 /* ---------- Daten laden ---------- */
-async function mosaic(base,name){
-  const meta=await (await fetch(base+name+'.json',{cache:'no-cache'})).json();
-  const blob=await (await fetch(base+name+'.png',{cache:'no-cache'})).blob();
+/* Ohne Netz oder bei sehr schlechtem Empfang: zuletzt vollständig geladener Stand aus dem Gerätespeicher.
+   Bild und Metadaten liegen zusammen in EINEM Eintrag – so passen sie immer zueinander. */
+const DCACHE='pilzwissen-daten-1';
+async function dCache(){try{return window.caches?await caches.open(DCACHE):null}catch(e){return null}}
+function tFetch(u,ms){if(!ms||!window.AbortController)return fetch(u,{cache:'no-cache'});const ac=new AbortController(),t=setTimeout(()=>ac.abort(),ms);
+  return fetch(u,{cache:'no-cache',signal:ac.signal}).finally(()=>clearTimeout(t))}
+/* lazy=true (Standortdaten, ändern sich kaum): gespeicherten Stand sofort nehmen und im Hintergrund auffrischen */
+async function getData(base,name,lazy){
+  const c=await dCache(),key=base+name+'.png';let old=null;try{old=c?await c.match(key):null}catch(e){}
+  const fresh=async(slow)=>{
+    const rj=await tFetch(base+name+'.json',slow?0:4000);if(!rj.ok)throw new Error('HTTP '+rj.status);const meta=await rj.json();
+    const rp=await tFetch(key+'?v='+encodeURIComponent(meta.generated||meta.date||''),slow?0:15000);if(!rp.ok)throw new Error('HTTP '+rp.status);const blob=await rp.blob();
+    if(c)try{await c.put(key,new Response(blob,{headers:{'Content-Type':'image/png','X-Meta':encodeURIComponent(JSON.stringify(meta))}}))}catch(e){}
+    return {meta,blob,cached:false}};
+  const stored=async()=>({meta:JSON.parse(decodeURIComponent(old.headers.get('X-Meta'))),blob:await old.blob(),cached:true});
+  if(!old)return fresh(true);
+  if(lazy){fresh(true).catch(()=>{});return stored()}
+  try{return await fresh(false)}catch(e){return stored()}
+}
+async function mosaic(base,name,lazy){
+  const {meta,blob,cached}=await getData(base,name,lazy);
   let bm;try{bm=await createImageBitmap(blob,{colorSpaceConversion:'none',premultiplyAlpha:'none'})}catch(e){bm=await createImageBitmap(blob)}
   const c=document.createElement('canvas');c.width=bm.width;c.height=bm.height;
   const x=c.getContext('2d',{willReadFrequently:true});x.drawImage(bm,0,0);
   const {W,H}=meta.grid,L={};
+  if(bm.width!==meta.cols*W||bm.height!==Math.ceil(meta.layers.length/meta.cols)*H){if(bm.close)bm.close();throw new Error('Daten passen nicht zusammen')}
   meta.layers.forEach((l,i)=>{const col=i%meta.cols,row=(i/meta.cols)|0;const px=x.getImageData(col*W,row*H,W,H).data;const a=new Uint8Array(W*H);for(let k=0;k<a.length;k++)a[k]=px[k*4];L[l.id]=a});
   if(bm.close)bm.close();
-  return {meta,L};
+  return {meta,L,cached};
 }
 function load(){
   if(DATA)return Promise.resolve(DATA);
   if(!LOADING)LOADING=(async()=>{
-    const d=await mosaic(URLS.daily,'daily');let s=null;
-    try{s=await mosaic(URLS.stat,'static');if(s.meta.grid.W!==d.meta.grid.W||s.meta.grid.H!==d.meta.grid.H)s=null}catch(e){s=null}
-    DATA={d,s,g:d.meta.grid,date:new Date(d.meta.date+'T12:00:00')};return DATA;
+    const [d,s0]=await Promise.all([mosaic(URLS.daily,'daily'),mosaic(URLS.stat,'static',true).catch(()=>null)]);
+    let s=s0;if(s&&(s.meta.grid.W!==d.meta.grid.W||s.meta.grid.H!==d.meta.grid.H))s=null;
+    DATA={d,s,g:d.meta.grid,date:new Date(d.meta.date+'T12:00:00'),t:Date.now(),offline:d.cached};return DATA;
   })().catch(e=>{LOADING=null;throw e});
   return LOADING;
 }
@@ -136,30 +158,48 @@ const total=f=>100*f.saison*f.standort*f.boden*f.feuchte*f.temperatur;
 function wetter(c){const t=c.t15==null?1:trap(c.t15,CFG.temp.allg)*fFrost(c,false);const h=c.tr?Math.min(1,Math.sqrt(c.forest/CFG.hFull)):1;return 100*fWet(c)*t*h}
 const edible=s=>s.tr&&s.tr.sw&&s.tr.sw[0]==='e';
 
-/* Schnelle Rasterberechnung (ohne Objekte je Zelle) */
+/* Schnelle Rasterberechnung (ohne Objekte je Zelle)
+   Alle Tageswerte liegen als Byte vor (0–250, 255 = fehlt). Feuchte-, Temperatur-, Frost- und pH-Faktoren werden deshalb
+   einmal je möglichem Bytewert vorausberechnet; Arten mit gleichem Modell (bei den Speisepilzen häufig) werden nur einmal gerechnet. */
+let LUTS=null;
+function luts(){if(LUTS)return LUTS;const fp=new Float64Array(256),fs=new Float64Array(256),ta=new Float64Array(256),fr=new Float64Array(256);
+  for(let b=0;b<256;b++){fp[b]=ss(b/2,CFG.peff[0],CFG.peff[1]);fs[b]=ss(b/2,CFG.sm[0],CFG.sm[1]);const t=b/4-20;
+    ta[b]=b===255?1:trap(t,CFG.temp.allg);fr[b]=b===255?1:t<CFG.frost[2]?CFG.frost[3]:t<CFG.frost[0]?CFG.frost[1]:1}
+  return LUTS={fp,fs,ta,fr}}
+function mLuts(m){if(m.tL)return m;const tL=new Float64Array(256),pL=new Float64Array(256);
+  const pa=m.ph?(m.ph.t==='sauer'?CFG.phSauer:CFG.phKalk):null;
+  for(let b=0;b<256;b++){
+    if(b===255)tL[b]=1;else{const t=b/4-20;let f=0;for(const [w,q] of m.win){const v=trap(t,w)*q;if(v>f)f=v}tL[b]=f}
+    pL[b]=!pa||b===255?1:1-clamp((b/40+3-pa[0])/(pa[1]-pa[0]))*(1-CFG.phMin)*m.ph.w}
+  m.tL=tL;m.pL=pL;return m}
 function grid(list){
   const {d,s,g}=DATA,L=d.L,N=g.W*g.H,out=new Float32Array(N).fill(-1),best=list&&list.length>1?new Int16Array(N).fill(-1):null;
   const tr=s?TREE.map(t=>s.L[t]):null,loss=s&&s.L.verlust,ph=s&&s.L.ph,mk=tr&&SMASK?SMASK:null;
-  const P=CFG.peff,S=CFG.sm,ms=list?list.map(sp=>{const m=model(sp);return {m,a:mk?m.a.map((v,j)=>v*mk[j]):m.a,sea:season(m.mo,DATA.date)}}).filter(x=>x.sea>0):null;
-  if(list&&!ms.length){for(let i=0;i<N;i++)if(L.peff[i]!==255)out[i]=0;return {out,best,idx:[]}}
-  const idx=list?list.map((sp,k)=>k).filter(k=>season(model(list[k]).mo,DATA.date)>0):[];
+  const U=luts(),fp=U.fp,fs=U.fs,ta=U.ta,fr=U.fr,wR=CFG.wRain,hF=CFG.hFull,PE=L.peff,SM=L.sm,T15=L.t15,TM=L.tmin5;
+  let G=null;
+  if(list){const seen=new Set();G=[];
+    list.forEach((sp,k)=>{const m=mLuts(model(sp)),sea=season(m.mo,DATA.date);if(!(sea>0))return;
+      const a=Float64Array.from(m.a,(v,j)=>mk?v*mk[j]:v);
+      const key=a.join(',')+'|'+m.open+'|'+(m.ph?m.ph.t+m.ph.w:'')+'|'+JSON.stringify(m.win)+'|'+m.hardy+'|'+sea;
+      if(seen.has(key))return;seen.add(key);G.push({a,open:m.open,tL:m.tL,pL:m.pL,hardy:m.hardy,sea,k,z:a.every(v=>v===0)&&(!!mk||!(m.open>0))})});
+    G.sort((x,y)=>y.sea-x.sea||x.k-y.k);   // hohe Saisonwerte zuerst: dann lassen sich mehr Arten früh überspringen
+    if(!G.length){for(let i=0;i<N;i++)if(PE[i]!==255)out[i]=0;return {out,best}}}
+  const nG=G?G.length:0;
   for(let i=0;i<N;i++){
-    if(L.peff[i]===255)continue;
-    const fp=ss(L.peff[i]/2,P[0],P[1]),wet=L.sm[i]===255?fp:CFG.wRain*fp+(1-CFG.wRain)*ss(L.sm[i]/2,S[0],S[1]);
-    const t15=L.t15[i]===255?null:L.t15[i]/4-20,tmin=L.tmin5[i]===255?null:L.tmin5[i]/4-20;
-    const frost=tmin==null?1:tmin<CFG.frost[2]?CFG.frost[3]:tmin<CFG.frost[0]?CFG.frost[1]:1;
-    const hasS=tr&&tr[0][i]!==255;let forest=0,fsel=0;if(hasS){for(let j=0;j<10;j++){const v=tr[j][i];forest+=v;if(mk)fsel+=v*mk[j]}}forest/=250;fsel/=250;
-    if(!list){const t=t15==null?1:trap(t15,CFG.temp.allg)*frost;out[i]=100*wet*t*(hasS?Math.min(1,Math.sqrt((mk?fsel:forest)/CFG.hFull)):1);continue}
+    const pb=PE[i];if(pb===255)continue;
+    const sb=SM[i],wet=sb===255?fp[pb]:wR*fp[pb]+(1-wR)*fs[sb];
+    const tb=T15[i],frost=fr[TM[i]],hasS=tr!==null&&tr[0][i]!==255;
+    if(!G){let f=0;if(hasS){for(let j=0;j<10;j++)f+=mk?tr[j][i]*mk[j]:tr[j][i];f/=250}
+      out[i]=100*wet*(tb===255?1:ta[tb]*frost)*(hasS?Math.min(1,Math.sqrt(f/hF)):1);continue}
     if(wet<=0){out[i]=0;continue}
-    const pH=hasS&&ph[i]!==255?ph[i]/40+3:null,openF=hasS&&!mk?Math.max(0,1-forest-(loss?loss[i]/250:0)):0;
-    let mx=0,bi=-1;
-    for(let k=0;k<ms.length;k++){const m=ms[k].m;
-      let tf=1;if(t15!=null){tf=0;for(const [w,q] of m.win){const v=trap(t15,w)*q;if(v>tf)tf=v}if(!m.hardy)tf*=frost}
-      if(tf<=0)continue;
-      let site=1;if(hasS){const a=ms[k].a;let h=0;for(let j=0;j<10;j++)h+=a[j]*tr[j][i];h/=250;site=Math.max(Math.min(1,Math.sqrt(h/CFG.hFull)),m.open*openF)}
+    let openF=0;if(hasS&&!mk){let f=0;for(let j=0;j<10;j++)f+=tr[j][i];openF=1-f/250-(loss?loss[i]/250:0);if(openF<0)openF=0}
+    const phb=hasS?ph[i]:255;let mx=0,bi=-1;
+    for(let q=0;q<nG;q++){const o=G[q];if(hasS&&o.z)continue;   // kann hier keinen Standort haben
+      const bound=100*o.sea*wet*(tb===255?1:o.tL[tb]*(o.hardy?1:frost));
+      if(bound<=mx)continue;            // Standort und pH sind höchstens 1 – diese Art kann den Bestwert nicht mehr übertreffen
+      let site=1;if(hasS){const a=o.a;let h=0;for(let j=0;j<10;j++)h+=a[j]*tr[j][i];site=Math.sqrt(h/250/hF);if(site>1)site=1;const so=o.open*openF;if(so>site)site=so}
       if(site<=0)continue;
-      let pf=1;if(m.ph&&pH!=null){const a=m.ph.t==='sauer'?CFG.phSauer:CFG.phKalk;pf=1-clamp((pH-a[0])/(a[1]-a[0]))*(1-CFG.phMin)*m.ph.w}
-      const v=100*ms[k].sea*site*pf*wet*tf;if(v>mx){mx=v;bi=idx[k]}}
+      const v=bound*site*o.pL[phb];if(v>mx){mx=v;bi=o.k}}
     out[i]=mx;if(best)best[i]=bi}
   return {out,best};
 }
@@ -167,9 +207,20 @@ function grid(list){
 /* ---------- Darstellung ---------- */
 const STOPS=[[3,255,246,190,0],[6,255,240,170,.75],[15,253,212,112,.85],[30,249,160,63,.88],[50,232,96,44,.9],[70,193,39,45,.92],[100,106,13,71,.94]];
 function colour(v){if(!(v>=STOPS[0][0]))return null;for(let k=1;k<STOPS.length;k++){if(v<=STOPS[k][0]){const a=STOPS[k-1],b=STOPS[k],t=(v-a[0])/(b[0]-a[0]);return [a[1]+(b[1]-a[1])*t,a[2]+(b[2]-a[2])*t,a[3]+(b[3]-a[3])*t,a[4]+(b[4]-a[4])*t]}}const z=STOPS[STOPS.length-1];return [z[1],z[2],z[3],z[4]]}
-function paint(score){const {W,H}=DATA.g,c=document.createElement('canvas');c.width=W;c.height=H;const x=c.getContext('2d'),im=x.createImageData(W,H),p=im.data;
-  for(let i=0;i<score.length;i++){const v=score[i];if(v<0){continue}const col=colour(v);if(col){p[i*4]=col[0];p[i*4+1]=col[1];p[i*4+2]=col[2];p[i*4+3]=col[3]*255}else{p[i*4]=120;p[i*4+1]=120;p[i*4+2]=120;p[i*4+3]=26}}
-  x.putImageData(im,0,0);return new Promise(r=>c.toBlob(b=>r(URL.createObjectURL(b)),'image/png'))}
+let COLLUT=null,CANV=null,CanvasOverlay=null;
+function colLut(){if(COLLUT)return COLLUT;const u=new Uint32Array(1001),le=new Uint8Array(new Uint32Array([1]).buffer)[0]===1;
+  for(let k=0;k<=1000;k++){const c=colour(k/10),r=c?Math.round(c[0]):120,g=c?Math.round(c[1]):120,b=c?Math.round(c[2]):120,a=c?Math.round(c[3]*255):26;
+    u[k]=(le?(a<<24|b<<16|g<<8|r):(r<<24|g<<16|b<<8|a))>>>0}
+  return COLLUT=u}
+function paint(score){const {W,H}=DATA.g;if(!CANV){CANV=document.createElement('canvas');CANV.width=W;CANV.height=H}
+  const x=CANV.getContext('2d'),im=x.createImageData(W,H),p=new Uint32Array(im.data.buffer),C=colLut();
+  for(let i=0;i<score.length;i++){const v=score[i];if(v<0)continue;let k=Math.floor(v*10);if(k>1000)k=1000;p[i]=C[k]}
+  x.putImageData(im,0,0);return CANV}
+/* Leaflet-ImageOverlay, das ein Canvas statt eines Bildes zeigt */
+function canvasOverlay(c,b,o){if(!CanvasOverlay)CanvasOverlay=L.ImageOverlay.extend({_initImage(){const el=this._image=this._url;
+    L.DomUtil.addClass(el,'leaflet-image-layer');if(this._zoomAnimated)L.DomUtil.addClass(el,'leaflet-zoom-animated');
+    if(this.options.className)L.DomUtil.addClass(el,this.options.className);el.onselectstart=L.Util.falseFn;el.onmousemove=L.Util.falseFn}});
+  return new CanvasOverlay(c,b,o)}
 const lon=x=>x/R*180/Math.PI,lat=y=>(2*Math.atan(Math.exp(y/R))-Math.PI/2)*180/Math.PI;
 const mx=l=>R*l*Math.PI/180,my=l=>R*Math.log(Math.tan(Math.PI/4+l*Math.PI/360));
 function bounds(){const g=DATA.g;return [[lat(g.y1-g.H*g.cell),lon(g.x0)],[lat(g.y1),lon(g.x0+g.W*g.cell)]]}
@@ -197,15 +248,20 @@ function css(){if(document.getElementById('hm-css'))return;const s=document.crea
 function lib(){if(window.L)return Promise.resolve();return new Promise((res,rej)=>{const l=document.createElement('link');l.rel='stylesheet';l.href='lib/leaflet.css';document.head.appendChild(l);const s=document.createElement('script');s.src='lib/leaflet.js';s.onload=res;s.onerror=()=>rej(new Error('Kartenbibliothek fehlt'));document.head.appendChild(s)})}
 
 function title(){if(STATE.mode==='art'){const s=SP().find(x=>x.id===STATE.id);return s?s.de:'Art'}return STATE.mode==='speise'?'Speisepilze':'Pilzwetter'}
+/* zuletzt berechnete Karten merken: Zurückschalten zeigt sie sofort */
+const RCACHE=new Map();
+const rKey=()=>[DATA.d.meta.date,DATA.s?1:0,STATE.mode,STATE.mode==='art'?STATE.id:'',SMASK?SMASK.key:''].join('|');
 async function update(root){
-  const busy=root.querySelector('.hm-busy');if(busy)busy.hidden=false;
-  await new Promise(r=>setTimeout(r,30));
-  let r;if(STATE.mode==='art'){const s=SP().find(x=>x.id===STATE.id);r=grid(s?[s]:[])}
-  else if(STATE.mode==='speise'){const list=SP().filter(edible);r=grid(list);r.list=list}
-  else r=grid(null);
+  const busy=root.querySelector('.hm-busy');let key=rKey(),r=RCACHE.get(key);
+  if(!r){if(busy)busy.hidden=false;await new Promise(r=>setTimeout(r,30));
+    key=rKey();r=RCACHE.get(key);       // Zustand kann sich in der Wartezeit geändert haben
+    if(!r){if(STATE.mode==='art'){const s=SP().find(x=>x.id===STATE.id);r=grid(s?[s]:[])}
+      else if(STATE.mode==='speise'){const list=SP().filter(edible);r=grid(list);r.list=list}
+      else r=grid(null);
+      RCACHE.set(key,r);while(RCACHE.size>6)RCACHE.delete(RCACHE.keys().next().value)}}
+  RCACHE.delete(key);RCACHE.set(key,r);
   SCORE=r.out;BEST=r.best?{idx:r.best,list:r.list}:null;
-  const url=await paint(SCORE);
-  if(OVER){const old=OVER._url;OVER.setUrl(url);if(old)URL.revokeObjectURL(old)}else{OVER=L.imageOverlay(url,bounds(),{opacity:OPT.op/100,className:'hm-px'}).addTo(MAP)}
+  const cv=paint(SCORE);if(!OVER)OVER=canvasOverlay(cv,bounds(),{opacity:OPT.op/100,className:'hm-px'}).addTo(MAP);
   if(busy)busy.hidden=true;
   const note=root.querySelector('#hm-note');
   if(note){let t='';if(STATE.mode==='art'){const s=SP().find(x=>x.id===STATE.id);if(s){const m=model(s),sea=season(m.mo,DATA.date);
@@ -239,26 +295,29 @@ function detail(root,i){
 }
 
 async function view(root,id){
-  css();if(MAP){try{MAP.remove()}catch(e){}MAP=null;OVER=null;MARK=null}
+  if(DATA&&navigator.onLine!==false&&(DATA.offline||Date.now()-DATA.t>3*36e5)){DATA=null;LOADING=null;RCACHE.clear()}
+  css();if(MAP){try{MAP.remove()}catch(e){}MAP=null;OVER=null;MARK=null;CANV=null}
   if(id&&SP().some(s=>s.id===id))STATE={mode:'art',id};else if(STATE.mode==='art'&&!id)STATE={mode:'wetter',id:null};
   root.innerHTML=`<h1>Pilzkarte</h1><p class="small mut" id="hm-stand">Lade Wetterdaten …</p>
   <div class="hm-ctl"><select id="hm-mode" aria-label="Anzeige"><option value="wetter">Pilzwetter allgemein</option><option value="speise">Speisepilze</option><option value="art" hidden>Einzelne Art</option></select>
   <div class="hm-sw"><input id="hm-q" type="search" placeholder="Art suchen, z. B. Steinpilz" aria-label="Art suchen" autocomplete="off" role="combobox" aria-expanded="false" aria-controls="hm-sug"><div class="hm-sug" id="hm-sug" role="listbox" hidden></div></div><button class="btn sm" id="hm-loc" type="button">◎ Mein Standort</button></div>
   <div class="hm-map" id="hm-map"><div class="hm-busy">Berechne Karte …</div></div>
-  <div class="hm-ctl hm-lay"><span class="chip" data-b="osm">Karte</span><span class="chip" data-b="sat">Satellit</span><i class="sep"></i><span class="chip" id="hm-trees">Baumarten (10 m)</span><label class="hm-op" title="Transparenz der farbigen Bewertung">Transparenz <input type="range" id="hm-op" min="0" max="100" step="5" aria-label="Transparenz der Bewertung"></label></div>
+  <div class="hm-ctl hm-lay"><span class="chip" data-b="osm">Karte</span><span class="chip" data-b="sat">Satellit</span><i class="sep"></i><span class="chip" id="hm-trees">Baumarten (10 m)</span><label class="hm-op" title="Deckkraft der farbigen Bewertung">Deckkraft <input type="range" id="hm-op" min="0" max="100" step="5" aria-label="Deckkraft der Bewertung"></label></div>
   <div class="hm-tleg" id="hm-tleg" hidden><button type="button" class="hm-tq" data-tq="all">Alle</button><button type="button" class="hm-tq" data-tq="none">Keine</button>${TKEYS.map(k=>`<button type="button" class="hm-tk" data-k="${k}" aria-pressed="true"><i style="background:${TCOL[k]}"></i>${TREEDE[k]}</button>`).join('')}<small>Antippen blendet eine Baumart ein oder aus. Die farbige Bewertung gilt dann nur für Bestände der gewählten Baumarten.</small></div>
   <div class="hm-leg"><span>gering</span><i></i><span>sehr gut</span></div>
   <p class="small mut" id="hm-note" style="margin:0 2px 8px"></p>
   <div class="panel" id="hm-detail"><p class="mut small" style="margin:0">Tippe auf die Karte, um die Werte einer Zelle und die dort passenden Arten zu sehen.</p></div>
   <div class="panel"><h3 style="margin-top:0">So entsteht die Bewertung</h3><p class="small">Der Wert (0–100) ist eine <b>Schätzung</b> aus Saison laut Steckbrief, Baumbestand, Boden-pH, Feuchte und Temperatur – kein Fundnachweis. Feuchte: wirksamer Niederschlag (Regen vor 4–5 Tagen zählt halb, vor 6–9 Tagen voll, vor 10–14 Tagen zu 70 %, vor 15–20 Tagen zu 30 %; die letzten 3 Tage noch nicht) und Bodenfeuchte. Die Baumartenkarte kennt nur die vorherrschende Art je 10-m-Fläche; Hainbuche, Linde, Pappel u. a. stecken in „sonstige Bäume“.</p>
-  <p class="small">Die Bewertung gilt für die ganze Zelle von etwa 1 × 1 km. Wo darin welcher Bestand steht, zeigt die Ebene <b>Baumarten (10 m)</b> – am besten hineinzoomen und die Bewertung mit dem Regler „Transparenz“ durchsichtiger machen. In der Legende darunter lässt sich jede Baumart einzeln ein- und ausblenden; solange nicht alle gewählt sind, bewertet die Karte nur Bestände dieser Baumarten (Offenland zählt dann nicht).</p>
+  <p class="small">Die Bewertung gilt für die ganze Zelle von etwa 1 × 1 km. Wo darin welcher Bestand steht, zeigt die Ebene <b>Baumarten (10 m)</b> – am besten hineinzoomen und mit dem Regler „Deckkraft“ die Bewertung abschwächen. In der Legende darunter lässt sich jede Baumart einzeln ein- und ausblenden; solange nicht alle gewählt sind, bewertet die Karte nur Bestände dieser Baumarten (Offenland zählt dann nicht).</p>
   <p class="tiny mut" style="margin-bottom:0">Daten: Deutscher Wetterdienst (HYRAS-DE-PRE, -TAS und -TASMIN, Bodenfeuchte AMBAV) · DLR, Tree Species Germany 2022 (CC BY 4.0) · ISRIC SoilGrids 2.0 (CC BY 4.0) · Karte © OpenStreetMap-Mitwirkende · Satellitenbild © Esri, Maxar, Earthstar Geographics</p></div>`;
   const stand=root.querySelector('#hm-stand');
   try{await Promise.all([load(),lib()])}catch(e){
-    root.querySelector('#hm-map').innerHTML=`<div style="padding:22px;text-align:center"><p><b>Die Pilzkarte konnte nicht geladen werden.</b></p><p class="small">Sie braucht eine Internetverbindung und funktioniert nur in der selbst gehosteten Fassung der App.</p><p><a class="btn" href="${SITE}#karte" target="_blank" rel="noopener">Pilzkarte dort öffnen</a></p></div>`;
+    root.querySelector('#hm-map').innerHTML=location.href.startsWith(SITE)
+      ?`<div style="padding:22px;text-align:center"><p><b>Die Pilzkarte konnte nicht geladen werden.</b></p><p class="small">Beim ersten Öffnen braucht sie eine Internetverbindung. Danach zeigt sie auch ohne Netz den zuletzt geladenen Stand.</p></div>`
+      :`<div style="padding:22px;text-align:center"><p><b>Die Pilzkarte konnte nicht geladen werden.</b></p><p class="small">Sie braucht eine Internetverbindung und funktioniert nur in der selbst gehosteten Fassung der App.</p><p><a class="btn" href="${SITE}#karte" target="_blank" rel="noopener">Pilzkarte dort öffnen</a></p></div>`;
     stand.textContent='';return}
   if(!root.isConnected)return;
-  const m=DATA.d.meta;stand.textContent=`Stand ${dDE(m.date)} · Niederschlag bis ${dDE(m.pr_last)}`+(m.sm_date?` · Bodenfeuchte vom ${dDE(m.sm_date)}`:' · ohne Bodenfeuchte')+(m.tas_last?'':' · ohne Temperatur');
+  const m=DATA.d.meta;stand.textContent=(DATA.offline?'Ohne Netz – zuletzt geladener Stand. ':'')+`Stand ${dDE(m.date)} · Niederschlag bis ${dDE(m.pr_last)}`+(m.sm_date?` · Bodenfeuchte vom ${dDE(m.sm_date)}`:' · ohne Bodenfeuchte')+(m.tas_last?'':' · ohne Temperatur');
   const sel=root.querySelector('#hm-mode'),q=root.querySelector('#hm-q');
   const sync=()=>{const o=sel.querySelector('[value=art]');if(STATE.mode==='art'){const s=SP().find(x=>x.id===STATE.id);o.hidden=false;o.textContent=s?s.de:'Einzelne Art';q.value=s?s.de:''}else{o.hidden=true}sel.value=STATE.mode};sync();
   MAP=L.map(root.querySelector('#hm-map'),{minZoom:5,maxZoom:17,maxBounds:[[45.5,2],[56.8,19]],attributionControl:true}).setView(POS?POS.c:[51.2,10.4],POS?POS.z:6);
@@ -266,17 +325,17 @@ async function view(root,id){
   MAP.attributionControl.setPrefix(false);
   const bases={osm:L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'© <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a>'}),
     sat:L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',{maxZoom:19,maxNativeZoom:18,attribution:'Satellitenbild © Esri, Maxar, Earthstar Geographics'})};
-  tFilter();sFilter();const trees=treeLayer({layers:'TREE_SPECIES_DE_2022',format:'image/png',transparent:true,version:'1.1.1',opacity:.8,maxZoom:19,zIndex:10,className:'hm-treelayer',attribution:'Baumarten © DLR (CC BY 4.0)'});
+  tFilter();sFilter();const trees=treeLayer({layers:'TREE_SPECIES_DE_2022',format:'image/png',transparent:true,version:'1.1.1',opacity:.8,maxZoom:19,tileSize:512,zIndex:10,className:'hm-treelayer',attribution:'Baumarten © DLR (CC BY 4.0)'});
   const lay=()=>{for(const k in bases){if(k===OPT.base){if(!MAP.hasLayer(bases[k]))bases[k].addTo(MAP)}else if(MAP.hasLayer(bases[k]))MAP.removeLayer(bases[k])}
     if(OPT.trees){if(!MAP.hasLayer(trees))trees.addTo(MAP)}else if(MAP.hasLayer(trees))MAP.removeLayer(trees);
     root.querySelectorAll('.hm-lay [data-b]').forEach(c=>c.classList.toggle('on',c.dataset.b===OPT.base));
     root.querySelector('#hm-trees').classList.toggle('on',!!OPT.trees);root.querySelector('#hm-tleg').hidden=!OPT.trees;
     const ts=tSel();root.querySelectorAll('.hm-tk').forEach(b=>b.setAttribute('aria-pressed',ts.includes(b.dataset.k)?'true':'false'));
-    root.querySelector('#hm-op').value=100-OPT.op;if(OVER)OVER.setOpacity(OPT.op/100)};
+    root.querySelector('#hm-op').value=OPT.op;if(OVER)OVER.setOpacity(OPT.op/100)};
   lay();
   root.querySelectorAll('.hm-lay [data-b]').forEach(c=>c.addEventListener('click',()=>{OPT.base=c.dataset.b;saveOpt();lay()}));
   root.querySelector('#hm-trees').addEventListener('click',()=>{OPT.trees=!OPT.trees;if(OPT.trees){if(OPT.op>35){OPT.opPrev=OPT.op;OPT.op=35}}else if(OPT.opPrev){OPT.op=OPT.opPrev;delete OPT.opPrev}saveOpt();lay();if(sFilter())reUpdate(root)});
-  root.querySelector('#hm-op').addEventListener('input',e=>{OPT.op=100-(+e.target.value);delete OPT.opPrev;if(OVER)OVER.setOpacity(OPT.op/100)});
+  root.querySelector('#hm-op').addEventListener('input',e=>{OPT.op=+e.target.value;delete OPT.opPrev;if(OVER)OVER.setOpacity(OPT.op/100)});
   root.querySelector('#hm-op').addEventListener('change',saveOpt);
   root.querySelector('#hm-tleg').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;let s=tSel();
     if(b.dataset.tq==='all')s=TKEYS.slice();else if(b.dataset.tq==='none')s=[];else if(b.dataset.k){const k=b.dataset.k;s=s.includes(k)?s.filter(x=>x!==k):s.concat(k)}else return;

@@ -220,6 +220,17 @@ function paint(score){const {W,H}=DATA.g;if(!CANV){CANV=document.createElement('
   const x=CANV.getContext('2d'),im=x.createImageData(W,H),p=new Uint32Array(im.data.buffer),C=colLut();
   for(let i=0;i<score.length;i++){const v=score[i];if(v<0)continue;let k=Math.floor(v*10);if(k>1000)k=1000;p[i]=C[k]}
   x.putImageData(im,0,0);return CANV}
+/* Boden-pH als Karte, gefärbt wie ein Indikatorstreifen: rot sauer – gelb – grün neutral – blau basisch */
+const PHSTOPS=[[4,200,16,46],[5,245,124,0],[6,251,211,52],[7,63,170,63],[8,31,99,184],[9,90,45,145]];
+let PHLUT=null;
+function phLut(){if(PHLUT)return PHLUT;const u=new Uint32Array(256),le=new Uint8Array(new Uint32Array([1]).buffer)[0]===1,S=PHSTOPS,A=217;
+  for(let b=0;b<255;b++){const v=b/40+3;let c=v<=S[0][0]?S[0]:S[S.length-1];
+    for(let k=1;k<S.length;k++)if(v>S[k-1][0]&&v<=S[k][0]){const a=S[k-1],z=S[k],t=(v-a[0])/(z[0]-a[0]);c=[v,a[1]+(z[1]-a[1])*t,a[2]+(z[2]-a[2])*t,a[3]+(z[3]-a[3])*t];break}
+    const r=Math.round(c[1]),g=Math.round(c[2]),bl=Math.round(c[3]);u[b]=(le?(A<<24|bl<<16|g<<8|r):(r<<24|g<<16|bl<<8|A))>>>0}
+  u[255]=0;return PHLUT=u}
+function paintPh(){const {W,H}=DATA.g;if(!CANV){CANV=document.createElement('canvas');CANV.width=W;CANV.height=H}
+  const x=CANV.getContext('2d'),im=x.createImageData(W,H),p=new Uint32Array(im.data.buffer),C=phLut(),ph=DATA.s.L.ph;
+  for(let i=0;i<ph.length;i++)p[i]=C[ph[i]];x.putImageData(im,0,0);return CANV}
 /* Leaflet-ImageOverlay, das ein Canvas statt eines Bildes zeigt */
 function canvasOverlay(c,b,o){if(!CanvasOverlay)CanvasOverlay=L.ImageOverlay.extend({_initImage(){const el=this._image=this._url;
     L.DomUtil.addClass(el,'leaflet-image-layer');if(this._zoomAnimated)L.DomUtil.addClass(el,'leaflet-zoom-animated');
@@ -244,19 +255,24 @@ function css(){if(document.getElementById('hm-css'))return;const s=document.crea
 .hm-tk{display:inline-flex;align-items:center;gap:5px;font:inherit;font-size:.8rem;line-height:1.2;padding:4px 10px 4px 7px;border:1px solid var(--line);border-radius:999px;background:var(--card);color:var(--ink);cursor:pointer}
 .hm-tk i{width:12px;height:12px;border-radius:3px;display:inline-block;border:1px solid rgba(0,0,0,.3);flex:none}.hm-tk[aria-pressed=false]{opacity:.45}.hm-tk[aria-pressed=false] i{background:transparent!important}
 .hm-tq{font:inherit;font-size:.8rem;padding:4px 6px;border:0;background:none;color:var(--moss2);text-decoration:underline;cursor:pointer}.hm-tleg small{flex-basis:100%;color:var(--mut);font-size:.76rem}
-.hm-leg{display:flex;align-items:center;gap:10px;margin:10px 2px;font-size:.8rem;color:var(--mut)}.hm-leg i{flex:1;height:10px;border-radius:6px;background:linear-gradient(90deg,#d73027 3%,#f46d43 10%,#fdae61 20%,#fee08b 32%,#d9ef8b 45%,#a6d96a 58%,#66bd63 70%,#1a9850 85%,#006837)}
+.hm-leg{display:flex;align-items:center;gap:10px;margin:10px 2px;font-size:.8rem;color:var(--mut)}.hm-leg[hidden]{display:none}.hm-leg i.ph{background:linear-gradient(90deg,#c8102e,#f57c00 20%,#fbd334 40%,#3faa3f 60%,#1f63b8 80%,#5a2d91)}
+.hm-ticks{margin-top:-8px}.hm-ticks>span{visibility:hidden}.hm-ticks b{flex:1;display:flex;justify-content:space-between;font-weight:400}.hm-ticks em{font-style:normal;width:0;display:flex;justify-content:center;white-space:nowrap}.hm-ticks em:first-child{justify-content:flex-start}.hm-ticks em:last-child{justify-content:flex-end}
+.hm-leg i{flex:1;height:10px;border-radius:6px;background:linear-gradient(90deg,#d73027 3%,#f46d43 10%,#fdae61 20%,#fee08b 32%,#d9ef8b 45%,#a6d96a 58%,#66bd63 70%,#1a9850 85%,#006837)}
 .hm-bar{display:grid;grid-template-columns:110px 1fr 44px;gap:8px;align-items:center;font-size:.86rem;margin:5px 0}.hm-bar b{font-weight:500}.hm-bar span{height:8px;border-radius:5px;background:var(--chip);overflow:hidden;display:block}.hm-bar span i{display:block;height:100%;background:var(--moss2)}.hm-bar em{font-style:normal;text-align:right;color:var(--mut)}
 .hm-kv{display:grid;grid-template-columns:auto 1fr;gap:3px 14px;font-size:.88rem;margin:6px 0}.hm-kv span{color:var(--mut)}
 .hm-top{display:flex;flex-direction:column;gap:2px;margin:6px 0}.hm-top a{display:flex;justify-content:space-between;gap:10px;padding:6px 0;border-bottom:1px solid var(--line);font-size:.9rem}.hm-top a em{font-style:normal;color:var(--mut)}
 .hm-score{font-size:1.5rem;font-weight:700;color:var(--rust)}`;document.head.appendChild(s)}
 function lib(){if(window.L)return Promise.resolve();return new Promise((res,rej)=>{const l=document.createElement('link');l.rel='stylesheet';l.href='lib/leaflet.css';document.head.appendChild(l);const s=document.createElement('script');s.src='lib/leaflet.js';s.onload=res;s.onerror=()=>rej(new Error('Kartenbibliothek fehlt'));document.head.appendChild(s)})}
 
-function title(){if(STATE.mode==='art'){const s=SP().find(x=>x.id===STATE.id);return s?s.de:'Art'}return STATE.mode==='speise'?'Speisepilze':'Pilzwetter'}
+function title(){if(STATE.mode==='ph')return 'Boden-pH';if(STATE.mode==='art'){const s=SP().find(x=>x.id===STATE.id);return s?s.de:'Art'}return STATE.mode==='speise'?'Speisepilze':'Pilzwetter'}
 /* zuletzt berechnete Karten merken: Zurückschalten zeigt sie sofort */
 const RCACHE=new Map();
 const rKey=()=>[DATA.d.meta.date,DATA.s?1:0,STATE.mode,STATE.mode==='art'?STATE.id:'',SMASK?SMASK.key:''].join('|');
 async function update(root){
-  const busy=root.querySelector('.hm-busy');let key=rKey(),r=RCACHE.get(key);
+  if(STATE.mode==='ph'&&!DATA.s)STATE={mode:'wetter',id:null};   // ohne Standortdaten keine pH-Karte
+  const busy=root.querySelector('.hm-busy');
+  if(STATE.mode==='ph'){SCORE=null;BEST=null;const cv=paintPh();if(!OVER)OVER=canvasOverlay(cv,bounds(),{opacity:OPT.op/100,className:'hm-px'}).addTo(MAP);if(busy)busy.hidden=true}
+  else{let key=rKey(),r=RCACHE.get(key);
   if(!r){if(busy)busy.hidden=false;await new Promise(r=>setTimeout(r,30));
     key=rKey();r=RCACHE.get(key);       // Zustand kann sich in der Wartezeit geändert haben
     if(!r){if(STATE.mode==='art'){const s=SP().find(x=>x.id===STATE.id);r=grid(s?[s]:[])}
@@ -266,16 +282,18 @@ async function update(root){
   RCACHE.delete(key);RCACHE.set(key,r);
   SCORE=r.out;BEST=r.best?{idx:r.best,list:r.list}:null;
   const cv=paint(SCORE);if(!OVER)OVER=canvasOverlay(cv,bounds(),{opacity:OPT.op/100,className:'hm-px'}).addTo(MAP);
-  if(busy)busy.hidden=true;
+  if(busy)busy.hidden=true}
+  {const ph=STATE.mode==='ph';root.querySelectorAll('.hm-leg-s').forEach(e=>e.hidden=ph);root.querySelectorAll('.hm-leg-p').forEach(e=>e.hidden=!ph)}
   const note=root.querySelector('#hm-note');
   if(note){let t='';if(STATE.mode==='art'){const s=SP().find(x=>x.id===STATE.id);if(s){const m=model(s),sea=season(m.mo,DATA.date);
       if(sea<=0)t=`${esc(s.de)} hat laut Steckbrief gerade keine Saison – die Karte bleibt deshalb leer.`;
       else if(m.vague)t='Für diese Art ist kein Lebensraum hinterlegt – bewertet wird nur das Wetter.';
       else if(!m.forest)t=SMASK&&DATA.s?'Art des Offenlands – solange der Baumarten-Filter aktiv ist, bleibt die Karte für sie leer.':'Art des Offenlands: Wiese, Acker und Siedlung kann die Karte nicht unterscheiden – außerhalb des Waldes zählt nur das Wetter.'}}
     else if(STATE.mode==='speise')t='Gezeigt wird je Zelle der Wert der Speisepilz-Art, die dort gerade am besten passt.';
+    else if(STATE.mode==='ph')t='Boden-pH im Oberboden (0–15 cm), geschätzt aus SoilGrids (250-m-Raster, je Zelle gemittelt): rot = sauer, gelb = schwach sauer, grün = neutral, blau = basisch. Antippen zeigt den Wert und die Stufe.';
     else t=SMASK&&DATA.s?'Allgemeine Lage: Feuchte und Temperatur, gewichtet mit dem Anteil der gewählten Baumarten in der Zelle.':'Allgemeine Lage: Feuchte und Temperatur, gewichtet mit dem Waldanteil der Zelle.';
     if(!DATA.s)t+=' Die Standortdaten (Baumarten, Boden-pH) fehlen noch – bewertet wird vorerst nur das Wetter.';
-    else if(SMASK){const n=TREE.filter((x,j)=>SMASK[j]).map(x=>TREEDE[x]);t+=n.length?` Baumarten-Filter: bewertet werden nur Bestände mit ${n.join(', ')}.`:' Baumarten-Filter: keine Baumart gewählt – die Bewertung bleibt leer.'}
+    else if(SMASK&&STATE.mode!=='ph'){const n=TREE.filter((x,j)=>SMASK[j]).map(x=>TREEDE[x]);t+=n.length?` Baumarten-Filter: bewertet werden nur Bestände mit ${n.join(', ')}.`:' Baumarten-Filter: keine Baumart gewählt – die Bewertung bleibt leer.'}
     note.textContent=t.trim()}
   if(LASTCELL>=0)detail(root,LASTCELL);
 }
@@ -285,7 +303,7 @@ function detail(root,i){
   const box=root.querySelector('#hm-detail');if(!box)return;const c=cell(i);LASTCELL=i;
   if(!c){box.innerHTML='<p class="mut small">Für diesen Punkt liegen keine Daten vor (außerhalb Deutschlands).</p>';return}
   const g=DATA.g,cx=i%g.W,cy=(i/g.W)|0,la=lat(g.y1-(cy+.5)*g.cell),lo=lon(g.x0+(cx+.5)*g.cell);
-  const v=SCORE?Math.max(0,SCORE[i]):0;let h=`<div class="row" style="justify-content:space-between;align-items:baseline"><h3 style="margin:0">${esc(title())}</h3><span class="hm-score">${Math.round(v)}<small class="mut" style="font-size:.8rem;font-weight:500"> / 100</small></span></div><p class="tiny mut" style="margin:2px 0 8px">Zelle bei ${num(la,3)}° N, ${num(lo,3)}° O (ca. 1 × 1 km)</p>`;
+  const v=SCORE?Math.max(0,SCORE[i]):0,isPh=STATE.mode==='ph';let h=`<div class="row" style="justify-content:space-between;align-items:baseline"><h3 style="margin:0">${esc(title())}</h3><span class="hm-score">${isPh?(c.ph!=null?`${num(c.ph,1)}<small class="mut" style="font-size:.8rem;font-weight:500"> ${phClass(Math.round(c.ph*10)/10)}</small>`:'–'):`${Math.round(v)}<small class="mut" style="font-size:.8rem;font-weight:500"> / 100</small>`}</span></div><p class="tiny mut" style="margin:2px 0 8px">Zelle bei ${num(la,3)}° N, ${num(lo,3)}° O (ca. 1 × 1 km)</p>`;
   if(STATE.mode==='art'){const s=SP().find(x=>x.id===STATE.id);if(s){const f=factors(c,s);h+=bar('Saison',f.saison)+bar('Standort',f.standort)+bar('Boden-pH',f.boden)+bar('Feuchte',f.feuchte)+bar('Temperatur',f.temperatur)}}
   else if(STATE.mode==='speise'&&BEST&&BEST.idx[i]>=0){const s=BEST.list[BEST.idx[i]];h+=`<p class="small">Beste Art hier: <a href="#karte-${esc(s.id)}" style="text-decoration:underline">${esc(s.de)}</a></p>`}
   h+=`<div class="hm-kv"><span>Wirksamer Niederschlag</span><b>${num(c.peff,1)} mm <small class="mut">(${peffClass(Math.round(c.peff*10)/10)})</small></b>${c.recent!=null?`<span>Regen der letzten 3 Tage</span><b>${num(c.recent,1)} mm <small class="mut">(wirkt erst in einigen Tagen)</small></b>`:''}${c.sm!=null?`<span>Bodenfeuchte (0–30 cm)</span><b>${num(c.sm)} % nFK <small class="mut">(${smClass(Math.round(c.sm))})</small></b>`:''}${c.t15!=null?`<span>Temperatur, Mittel 15 Tage</span><b>${num(c.t15,1)} °C</b>`:''}${c.tmin!=null?`<span>Kältester Tag (letzte 5)</span><b>${c.fmin!=null?`Tagesmittel ${num(c.tmin,1)} °C · Tiefstwert ${num(c.fmin,1)} °C <small class="mut">(${frostName(c.fmin)||'kein Frost'})</small>`:`${num(c.tmin,1)} °C`}</b>`:''}${c.fseas!=null?`<span>Frost seit ${fsince()}</span><b>${frostName(c.fseas)?`${cap(frostName(c.fseas))} · Tiefstwert ${num(c.fseas,1)} °C`:`Noch keiner · Tiefstwert ${num(c.fseas,1)} °C`} <small class="mut">(Luft in 2 m Höhe)</small></b>`:''}`;
@@ -303,12 +321,12 @@ async function view(root,id){
   css();if(MAP){try{MAP.remove()}catch(e){}MAP=null;OVER=null;MARK=null;CANV=null}
   if(id&&SP().some(s=>s.id===id))STATE={mode:'art',id};else if(STATE.mode==='art'&&!id)STATE={mode:'wetter',id:null};
   root.innerHTML=`<h1>Pilzkarte</h1><p class="small mut" id="hm-stand">Lade Wetterdaten …</p>
-  <div class="hm-ctl"><select id="hm-mode" aria-label="Anzeige"><option value="wetter">Pilzwetter allgemein</option><option value="speise">Speisepilze</option><option value="art" hidden>Einzelne Art</option></select>
+  <div class="hm-ctl"><select id="hm-mode" aria-label="Anzeige"><option value="wetter">Pilzwetter allgemein</option><option value="speise">Speisepilze</option><option value="ph">Boden-pH</option><option value="art" hidden>Einzelne Art</option></select>
   <div class="hm-sw"><input id="hm-q" type="search" placeholder="Art suchen, z. B. Steinpilz" aria-label="Art suchen" autocomplete="off" role="combobox" aria-expanded="false" aria-controls="hm-sug"><div class="hm-sug" id="hm-sug" role="listbox" hidden></div></div><button class="btn sm" id="hm-loc" type="button">◎ Mein Standort</button></div>
   <div class="hm-map" id="hm-map"><div class="hm-busy">Berechne Karte …</div></div>
   <div class="hm-ctl hm-lay"><span class="chip" data-b="osm">Karte</span><span class="chip" data-b="sat">Satellit</span><i class="sep"></i><span class="chip" id="hm-trees">Baumarten (10 m)</span><label class="hm-op" title="Deckkraft der farbigen Bewertung">Deckkraft <input type="range" id="hm-op" min="0" max="100" step="5" aria-label="Deckkraft der Bewertung"></label></div>
   <div class="hm-tleg" id="hm-tleg" hidden><button type="button" class="hm-tq" data-tq="all">Alle</button><button type="button" class="hm-tq" data-tq="none">Keine</button>${TKEYS.map(k=>`<button type="button" class="hm-tk" data-k="${k}" aria-pressed="true"><i style="background:${TCOL[k]}"></i>${TREEDE[k]}</button>`).join('')}<small>Antippen blendet eine Baumart ein oder aus. Die farbige Bewertung gilt dann nur für Bestände der gewählten Baumarten.</small></div>
-  <div class="hm-leg"><span>schlecht</span><i></i><span>sehr gut</span></div>
+  <div class="hm-leg hm-leg-s"><span>schlecht</span><i></i><span>sehr gut</span></div><div class="hm-leg hm-leg-p" hidden><span>sauer</span><i class="ph"></i><span>basisch</span></div><div class="hm-leg hm-leg-p hm-ticks" hidden><span>sauer</span><b><em>pH 4</em><em>5</em><em>6</em><em>7</em><em>8</em><em>9</em></b><span>basisch</span></div>
   <p class="small mut" id="hm-note" style="margin:0 2px 8px"></p>
   <div class="panel" id="hm-detail"><p class="mut small" style="margin:0">Tippe auf die Karte, um die Werte einer Zelle und die dort passenden Arten zu sehen.</p></div>
   <div class="panel"><h3 style="margin-top:0">So entsteht die Bewertung</h3><p class="small">Der Wert (0–100) ist eine <b>Schätzung</b> aus Saison laut Steckbrief, Baumbestand, Boden-pH, Feuchte und Temperatur – kein Fundnachweis. Feuchte: wirksamer Niederschlag (Regen vor 4–5 Tagen zählt halb, vor 6–9 Tagen voll, vor 10–14 Tagen zu 70 %, vor 15–20 Tagen zu 30 %; die letzten 3 Tage noch nicht) und Bodenfeuchte. Die Baumartenkarte kennt nur die vorherrschende Art je 10-m-Fläche; Hainbuche, Linde, Pappel u. a. stecken in „sonstige Bäume“.</p>
@@ -317,9 +335,9 @@ async function view(root,id){
   <p class="small"><b>Wirksamer Niederschlag</b> (gewichtete Regensumme der letzten 20 Tage): unter 4 mm sehr trocken · 4–10 mm trocken · 10–18 mm mäßig feucht · 18–30 mm feucht · 30–50 mm sehr feucht · ab 50 mm nass. Bei durchschnittlichem Regen (Deutschland rund 790 mm im Jahr) ergäben sich etwa 22 mm. In der Bewertung zählt Regen unter 4 mm gar nicht, ab 28 mm voll; die Feuchte setzt sich dort zu 65 % aus dem Regen und zu 35 % aus der Bodenfeuchte zusammen.</p>
   <p class="small"><b>Bodenfeuchte in % nFK</b> – nutzbare Feldkapazität: wie voll der Bodenwasserspeicher ist, aus dem Pflanzen Wasser ziehen können (100 % = voll, 0 % = leer). Unter 20 % sehr trocken · 20–30 % trocken · 30–50 % mäßig trocken · 50–80 % feucht · 80–100 % sehr feucht · über 100 % nass. Unter 30 % herrscht laut DWD deutlicher Trockenstress. In der Bewertung zählt Bodenfeuchte unter 35 % gar nicht, ab 80 % voll.</p>
   <p class="small"><b>Frost</b> (Tiefstwert der Luft in 2 m Höhe, Einteilung des DWD): leicht 0 bis −4 °C · mäßig −4 bis −10 °C · streng −10 bis −15 °C · sehr streng unter −15 °C. In die Bewertung geht das kälteste Tagesmittel der letzten 5 Tage ein: unter −1 °C halbiert sie sich, unter −4 °C sinkt sie auf ein Fünftel – außer bei Winter- und Ganzjahresarten.</p>
-  <p class="small"><b>Boden-pH</b> (Stufen nach der Bodenkundlichen Kartieranleitung): unter 4,0 sehr stark sauer · 4,0–4,7 stark sauer · 4,7–5,4 mäßig sauer · 5,4–6,1 schwach sauer · 6,1–6,8 sehr schwach sauer · 6,8–7,2 neutral · darüber alkalisch. Der Wert ist eine Schätzung aus SoilGrids (pH in Wasser, 250-m-Raster). In der Bewertung verlieren Arten saurer Böden ab pH 5,0 und Kalkzeiger unter pH 6,3 an Punkten.</p>
+  <p class="small"><b>Boden-pH</b> (Stufen nach der Bodenkundlichen Kartieranleitung): unter 4,0 sehr stark sauer · 4,0–4,7 stark sauer · 4,7–5,4 mäßig sauer · 5,4–6,1 schwach sauer · 6,1–6,8 sehr schwach sauer · 6,8–7,2 neutral · darüber alkalisch. Der Wert ist eine Schätzung aus SoilGrids (pH in Wasser, 250-m-Raster). Die Ansicht „Boden-pH“ zeigt ihn als Karte, gefärbt wie ein Indikatorstreifen: rot sauer, gelb schwach sauer, grün neutral, blau basisch. In der Bewertung verlieren Arten saurer Böden ab pH 5,0 und Kalkzeiger unter pH 6,3 an Punkten.</p>
   <p class="small">Die Bewertung gilt für die ganze Zelle von etwa 1 × 1 km. Wo darin welcher Bestand steht, zeigt die Ebene <b>Baumarten (10 m)</b> – am besten hineinzoomen und mit dem Regler „Deckkraft“ die Bewertung abschwächen. In der Legende darunter lässt sich jede Baumart einzeln ein- und ausblenden; solange nicht alle gewählt sind, bewertet die Karte nur Bestände dieser Baumarten (Offenland zählt dann nicht).</p>
-  <p class="tiny mut" style="margin-bottom:0">Daten: Deutscher Wetterdienst (HYRAS-DE-PRE, -TAS und -TASMIN, Bodenfeuchte AMBAV) · DLR, Tree Species Germany 2022 (CC BY 4.0) · ISRIC SoilGrids 2.0 (CC BY 4.0) · Karte © OpenStreetMap-Mitwirkende · Satellitenbild © Esri, Maxar, Earthstar Geographics</p></div>`;
+  <p class="tiny mut" style="margin-bottom:0">Daten: Deutscher Wetterdienst (HYRAS-DE-PRE, -TAS und -TASMIN, Bodenfeuchte AMBAV) · DLR, Tree Species Germany 2022 (CC BY 4.0) · ISRIC SoilGrids 2.0 (CC BY 4.0) · Karte © OpenStreetMap-Mitwirkende · Satellitenbild: Esri, Vantor, Earthstar Geographics und GIS-Nutzergemeinschaft · Ortsnamen: Esri, HERE, Garmin, OpenStreetMap-Mitwirkende</p></div>`;
   const stand=root.querySelector('#hm-stand');
   try{await Promise.all([load(),lib()])}catch(e){
     root.querySelector('#hm-map').innerHTML=location.href.startsWith(SITE)
@@ -330,13 +348,18 @@ async function view(root,id){
   const m=DATA.d.meta;stand.textContent=(DATA.offline?'Ohne Netz – zuletzt geladener Stand. ':'')+`Stand ${dDE(m.date)} · Niederschlag bis ${dDE(m.pr_last)}`+(m.sm_date?` · Bodenfeuchte vom ${dDE(m.sm_date)}`:' · ohne Bodenfeuchte')+(m.tas_last?'':' · ohne Temperatur');
   const sel=root.querySelector('#hm-mode'),q=root.querySelector('#hm-q');
   const sync=()=>{const o=sel.querySelector('[value=art]');if(STATE.mode==='art'){const s=SP().find(x=>x.id===STATE.id);o.hidden=false;o.textContent=s?s.de:'Einzelne Art';q.value=s?s.de:''}else{o.hidden=true}sel.value=STATE.mode};sync();
+  sel.querySelector('[value=ph]').hidden=!DATA.s;   // pH-Karte nur mit Standortdaten
   MAP=L.map(root.querySelector('#hm-map'),{minZoom:5,maxZoom:17,maxBounds:[[45.5,2],[56.8,19]],attributionControl:true}).setView(POS?POS.c:[51.2,10.4],POS?POS.z:6);
   MAP.on('moveend',()=>{POS={c:MAP.getCenter(),z:MAP.getZoom()}});
   MAP.attributionControl.setPrefix(false);
   const bases={osm:L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'© <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a>'}),
-    sat:L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',{maxZoom:19,maxNativeZoom:18,attribution:'Satellitenbild © Esri, Maxar, Earthstar Geographics'})};
+    sat:L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',{maxZoom:19,maxNativeZoom:18,attribution:'Satellitenbild: Esri, Vantor, Earthstar Geographics, GIS-Nutzergemeinschaft'})};
+  /* Ortsnamen und Grenzen über dem Satellitenbild – eigene Ebene über Bewertung und Baumarten, nimmt keine Klicks an */
+  if(!MAP.getPane('hm-lab')){const pn=MAP.createPane('hm-lab');pn.style.zIndex=450;pn.style.pointerEvents='none'}
+  const labels=L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}',{pane:'hm-lab',maxZoom:19,attribution:'Ortsnamen: Esri, HERE, Garmin, © OpenStreetMap-Mitwirkende'});
   tFilter();sFilter();const trees=treeLayer({layers:'TREE_SPECIES_DE_2022',format:'image/png',transparent:true,version:'1.1.1',opacity:.8,maxZoom:19,tileSize:512,zIndex:10,className:'hm-treelayer',attribution:'Baumarten © DLR (CC BY 4.0)'});
   const lay=()=>{for(const k in bases){if(k===OPT.base){if(!MAP.hasLayer(bases[k]))bases[k].addTo(MAP)}else if(MAP.hasLayer(bases[k]))MAP.removeLayer(bases[k])}
+    if(OPT.base==='sat'){if(!MAP.hasLayer(labels))labels.addTo(MAP)}else if(MAP.hasLayer(labels))MAP.removeLayer(labels);
     if(OPT.trees){if(!MAP.hasLayer(trees))trees.addTo(MAP)}else if(MAP.hasLayer(trees))MAP.removeLayer(trees);
     root.querySelectorAll('.hm-lay [data-b]').forEach(c=>c.classList.toggle('on',c.dataset.b===OPT.base));
     root.querySelector('#hm-trees').classList.toggle('on',!!OPT.trees);root.querySelector('#hm-tleg').hidden=!OPT.trees;

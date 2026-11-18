@@ -1,4 +1,4 @@
-const C='pilzwissen-v15',D='pilzwissen-daten-1';   // D: letzter Datenstand der Pilzkarte (legt heat.js an)
+const C='pilzwissen-v16',D='pilzwissen-daten-1';   // D: letzter Datenstand der Pilzkarte (legt heat.js an)
 /* Baumarten-Kacheln des DLR (Karte von 2022, ändert sich nicht): einmal geladen bleiben sie auf dem Gerät –
    beim nächsten Mal sofort da, ohne erneuten Download. Eigener Speicher, der Versionswechsel überlebt; höchstens TMAX Kacheln. */
 const T='pilzwissen-baumarten-1',TMAX=1200;let tPut=0;

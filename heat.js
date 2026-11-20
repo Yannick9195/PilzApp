@@ -28,6 +28,8 @@ const num=(x,d=0)=>x.toLocaleString('de-DE',{minimumFractionDigits:d,maximumFrac
 const dDE=s=>{if(!s)return '–';const [y,m,d]=s.split('-');return `${+d}.${+m}.${y}`};
 const SP=()=>window.SPECIES||[];
 let DATA=null,LOADING=null,MAP=null,OVER=null,MARK=null,STATE={mode:'wetter',id:null},SCORE=null,BEST=null,LASTCELL=-1,POS=null;
+/* Boden-pH-Karte: Schalter neben „Baumarten“; solange er an ist, ersetzt sie die farbige Bewertung (Auswahl oben bleibt erhalten) */
+let PH=false;const phOn=()=>!!(PH&&DATA&&DATA.s);
 /* Kartenoptionen (Hintergrund, Baumarten-Ebene, Deckkraft der Bewertung) – je Gerät gemerkt */
 const OPT={base:'osm',trees:false,op:70};
 try{Object.assign(OPT,JSON.parse(localStorage.getItem('pw_karte')||'{}'))}catch(e){}
@@ -264,14 +266,14 @@ function css(){if(document.getElementById('hm-css'))return;const s=document.crea
 .hm-score{font-size:1.5rem;font-weight:700;color:var(--rust)}`;document.head.appendChild(s)}
 function lib(){if(window.L)return Promise.resolve();return new Promise((res,rej)=>{const l=document.createElement('link');l.rel='stylesheet';l.href='lib/leaflet.css';document.head.appendChild(l);const s=document.createElement('script');s.src='lib/leaflet.js';s.onload=res;s.onerror=()=>rej(new Error('Kartenbibliothek fehlt'));document.head.appendChild(s)})}
 
-function title(){if(STATE.mode==='ph')return 'Boden-pH';if(STATE.mode==='art'){const s=SP().find(x=>x.id===STATE.id);return s?s.de:'Art'}return STATE.mode==='speise'?'Speisepilze':'Pilzwetter'}
+function title(){if(phOn())return 'Boden-pH';if(STATE.mode==='art'){const s=SP().find(x=>x.id===STATE.id);return s?s.de:'Art'}return STATE.mode==='speise'?'Speisepilze':'Pilzwetter'}
 /* zuletzt berechnete Karten merken: Zurückschalten zeigt sie sofort */
 const RCACHE=new Map();
 const rKey=()=>[DATA.d.meta.date,DATA.s?1:0,STATE.mode,STATE.mode==='art'?STATE.id:'',SMASK?SMASK.key:''].join('|');
 async function update(root){
-  if(STATE.mode==='ph'&&!DATA.s)STATE={mode:'wetter',id:null};   // ohne Standortdaten keine pH-Karte
+  if(PH&&!DATA.s)PH=false;   // ohne Standortdaten keine pH-Karte
   const busy=root.querySelector('.hm-busy');
-  if(STATE.mode==='ph'){SCORE=null;BEST=null;const cv=paintPh();if(!OVER)OVER=canvasOverlay(cv,bounds(),{opacity:OPT.op/100,className:'hm-px'}).addTo(MAP);if(busy)busy.hidden=true}
+  if(phOn()){SCORE=null;BEST=null;const cv=paintPh();if(!OVER)OVER=canvasOverlay(cv,bounds(),{opacity:OPT.op/100,className:'hm-px'}).addTo(MAP);if(busy)busy.hidden=true}
   else{let key=rKey(),r=RCACHE.get(key);
   if(!r){if(busy)busy.hidden=false;await new Promise(r=>setTimeout(r,30));
     key=rKey();r=RCACHE.get(key);       // Zustand kann sich in der Wartezeit geändert haben
@@ -283,17 +285,17 @@ async function update(root){
   SCORE=r.out;BEST=r.best?{idx:r.best,list:r.list}:null;
   const cv=paint(SCORE);if(!OVER)OVER=canvasOverlay(cv,bounds(),{opacity:OPT.op/100,className:'hm-px'}).addTo(MAP);
   if(busy)busy.hidden=true}
-  {const ph=STATE.mode==='ph';root.querySelectorAll('.hm-leg-s').forEach(e=>e.hidden=ph);root.querySelectorAll('.hm-leg-p').forEach(e=>e.hidden=!ph)}
+  {const ph=phOn();root.querySelectorAll('.hm-leg-s').forEach(e=>e.hidden=ph);root.querySelectorAll('.hm-leg-p').forEach(e=>e.hidden=!ph);const b=root.querySelector('#hm-ph');if(b){b.classList.toggle('on',ph);b.setAttribute('aria-pressed',ph?'true':'false')}}
   const note=root.querySelector('#hm-note');
-  if(note){let t='';if(STATE.mode==='art'){const s=SP().find(x=>x.id===STATE.id);if(s){const m=model(s),sea=season(m.mo,DATA.date);
+  if(note){let t='';if(phOn())t='Boden-pH im Oberboden (0–15 cm), geschätzt aus SoilGrids (250-m-Raster, je Zelle gemittelt): rot = sauer, gelb = schwach sauer, grün = neutral, blau = basisch. Antippen zeigt den Wert und die Stufe. Solange „Boden-pH“ eingeschaltet ist, ist die Bewertung ausgeblendet.';
+    else if(STATE.mode==='art'){const s=SP().find(x=>x.id===STATE.id);if(s){const m=model(s),sea=season(m.mo,DATA.date);
       if(sea<=0)t=`${esc(s.de)} hat laut Steckbrief gerade keine Saison – die Karte bleibt deshalb leer.`;
       else if(m.vague)t='Für diese Art ist kein Lebensraum hinterlegt – bewertet wird nur das Wetter.';
       else if(!m.forest)t=SMASK&&DATA.s?'Art des Offenlands – solange der Baumarten-Filter aktiv ist, bleibt die Karte für sie leer.':'Art des Offenlands: Wiese, Acker und Siedlung kann die Karte nicht unterscheiden – außerhalb des Waldes zählt nur das Wetter.'}}
     else if(STATE.mode==='speise')t='Gezeigt wird je Zelle der Wert der Speisepilz-Art, die dort gerade am besten passt.';
-    else if(STATE.mode==='ph')t='Boden-pH im Oberboden (0–15 cm), geschätzt aus SoilGrids (250-m-Raster, je Zelle gemittelt): rot = sauer, gelb = schwach sauer, grün = neutral, blau = basisch. Antippen zeigt den Wert und die Stufe.';
     else t=SMASK&&DATA.s?'Allgemeine Lage: Feuchte und Temperatur, gewichtet mit dem Anteil der gewählten Baumarten in der Zelle.':'Allgemeine Lage: Feuchte und Temperatur, gewichtet mit dem Waldanteil der Zelle.';
     if(!DATA.s)t+=' Die Standortdaten (Baumarten, Boden-pH) fehlen noch – bewertet wird vorerst nur das Wetter.';
-    else if(SMASK&&STATE.mode!=='ph'){const n=TREE.filter((x,j)=>SMASK[j]).map(x=>TREEDE[x]);t+=n.length?` Baumarten-Filter: bewertet werden nur Bestände mit ${n.join(', ')}.`:' Baumarten-Filter: keine Baumart gewählt – die Bewertung bleibt leer.'}
+    else if(SMASK&&!phOn()){const n=TREE.filter((x,j)=>SMASK[j]).map(x=>TREEDE[x]);t+=n.length?` Baumarten-Filter: bewertet werden nur Bestände mit ${n.join(', ')}.`:' Baumarten-Filter: keine Baumart gewählt – die Bewertung bleibt leer.'}
     note.textContent=t.trim()}
   if(LASTCELL>=0)detail(root,LASTCELL);
 }
@@ -303,9 +305,9 @@ function detail(root,i){
   const box=root.querySelector('#hm-detail');if(!box)return;const c=cell(i);LASTCELL=i;
   if(!c){box.innerHTML='<p class="mut small">Für diesen Punkt liegen keine Daten vor (außerhalb Deutschlands).</p>';return}
   const g=DATA.g,cx=i%g.W,cy=(i/g.W)|0,la=lat(g.y1-(cy+.5)*g.cell),lo=lon(g.x0+(cx+.5)*g.cell);
-  const v=SCORE?Math.max(0,SCORE[i]):0,isPh=STATE.mode==='ph';let h=`<div class="row" style="justify-content:space-between;align-items:baseline"><h3 style="margin:0">${esc(title())}</h3><span class="hm-score">${isPh?(c.ph!=null?`${num(c.ph,1)}<small class="mut" style="font-size:.8rem;font-weight:500"> ${phClass(Math.round(c.ph*10)/10)}</small>`:'–'):`${Math.round(v)}<small class="mut" style="font-size:.8rem;font-weight:500"> / 100</small>`}</span></div><p class="tiny mut" style="margin:2px 0 8px">Zelle bei ${num(la,3)}° N, ${num(lo,3)}° O (ca. 1 × 1 km)</p>`;
-  if(STATE.mode==='art'){const s=SP().find(x=>x.id===STATE.id);if(s){const f=factors(c,s);h+=bar('Saison',f.saison)+bar('Standort',f.standort)+bar('Boden-pH',f.boden)+bar('Feuchte',f.feuchte)+bar('Temperatur',f.temperatur)}}
-  else if(STATE.mode==='speise'&&BEST&&BEST.idx[i]>=0){const s=BEST.list[BEST.idx[i]];h+=`<p class="small">Beste Art hier: <a href="#karte-${esc(s.id)}" style="text-decoration:underline">${esc(s.de)}</a></p>`}
+  const v=SCORE?Math.max(0,SCORE[i]):0,isPh=phOn();let h=`<div class="row" style="justify-content:space-between;align-items:baseline"><h3 style="margin:0">${esc(title())}</h3><span class="hm-score">${isPh?(c.ph!=null?`${num(c.ph,1)}<small class="mut" style="font-size:.8rem;font-weight:500"> ${phClass(Math.round(c.ph*10)/10)}</small>`:'–'):`${Math.round(v)}<small class="mut" style="font-size:.8rem;font-weight:500"> / 100</small>`}</span></div><p class="tiny mut" style="margin:2px 0 8px">Zelle bei ${num(la,3)}° N, ${num(lo,3)}° O (ca. 1 × 1 km)</p>`;
+  if(!isPh&&STATE.mode==='art'){const s=SP().find(x=>x.id===STATE.id);if(s){const f=factors(c,s);h+=bar('Saison',f.saison)+bar('Standort',f.standort)+bar('Boden-pH',f.boden)+bar('Feuchte',f.feuchte)+bar('Temperatur',f.temperatur)}}
+  else if(!isPh&&STATE.mode==='speise'&&BEST&&BEST.idx[i]>=0){const s=BEST.list[BEST.idx[i]];h+=`<p class="small">Beste Art hier: <a href="#karte-${esc(s.id)}" style="text-decoration:underline">${esc(s.de)}</a></p>`}
   h+=`<div class="hm-kv"><span>Wirksamer Niederschlag</span><b>${num(c.peff,1)} mm <small class="mut">(${peffClass(Math.round(c.peff*10)/10)})</small></b>${c.recent!=null?`<span>Regen der letzten 3 Tage</span><b>${num(c.recent,1)} mm <small class="mut">(wirkt erst in einigen Tagen)</small></b>`:''}${c.sm!=null?`<span>Bodenfeuchte (0–30 cm)</span><b>${num(c.sm)} % nFK <small class="mut">(${smClass(Math.round(c.sm))})</small></b>`:''}${c.t15!=null?`<span>Temperatur, Mittel 15 Tage</span><b>${num(c.t15,1)} °C</b>`:''}${c.tmin!=null?`<span>Kältester Tag (letzte 5)</span><b>${c.fmin!=null?`Tagesmittel ${num(c.tmin,1)} °C · Tiefstwert ${num(c.fmin,1)} °C <small class="mut">(${frostName(c.fmin)||'kein Frost'})</small>`:`${num(c.tmin,1)} °C`}</b>`:''}${c.fseas!=null?`<span>Frost seit ${fsince()}</span><b>${frostName(c.fseas)?`${cap(frostName(c.fseas))} · Tiefstwert ${num(c.fseas,1)} °C`:`Noch keiner · Tiefstwert ${num(c.fseas,1)} °C`} <small class="mut">(Luft in 2 m Höhe)</small></b>`:''}`;
   if(c.tr){const ta=c.trAll||c.tr,fa=c.flt?c.forestAll:c.forest,t=TREE.map((n,j)=>[n,ta[j]]).filter(x=>x[1]>=.01).sort((a,b)=>b[1]-a[1]);
     h+=`<span>Wald in der Zelle</span><b>${num(fa*100)} %${t.length?' – '+t.slice(0,5).map(x=>`${TREEDE[x[0]]} ${num(x[1]*100)} %`).join(', '):''}</b>${c.flt?`<span>Davon gewählte Baumarten</span><b>${num(c.forest*100)} % der Zelle</b>`:''}${c.loss>=.01?`<span>Kahl-/Schadfläche</span><b>${num(c.loss*100)} %</b>`:''}${c.ph!=null?`<span>Boden-pH (0–15 cm)</span><b>${num(c.ph,1)} <small class="mut">(${phClass(Math.round(c.ph*10)/10)})</small></b>`:''}`}
@@ -319,12 +321,12 @@ function detail(root,i){
 async function view(root,id){
   if(DATA&&navigator.onLine!==false&&(DATA.offline||Date.now()-DATA.t>3*36e5)){DATA=null;LOADING=null;RCACHE.clear()}
   css();if(MAP){try{MAP.remove()}catch(e){}MAP=null;OVER=null;MARK=null;CANV=null}
-  if(id&&SP().some(s=>s.id===id))STATE={mode:'art',id};else if(STATE.mode==='art'&&!id)STATE={mode:'wetter',id:null};
+  if(id&&SP().some(s=>s.id===id)){STATE={mode:'art',id};PH=false}else if(STATE.mode==='art'&&!id)STATE={mode:'wetter',id:null};
   root.innerHTML=`<h1>Pilzkarte</h1><p class="small mut" id="hm-stand">Lade Wetterdaten …</p>
-  <div class="hm-ctl"><select id="hm-mode" aria-label="Anzeige"><option value="wetter">Pilzwetter allgemein</option><option value="speise">Speisepilze</option><option value="ph">Boden-pH</option><option value="art" hidden>Einzelne Art</option></select>
+  <div class="hm-ctl"><select id="hm-mode" aria-label="Anzeige"><option value="wetter">Pilzwetter allgemein</option><option value="speise">Speisepilze</option><option value="art" hidden>Einzelne Art</option></select>
   <div class="hm-sw"><input id="hm-q" type="search" placeholder="Art suchen, z. B. Steinpilz" aria-label="Art suchen" autocomplete="off" role="combobox" aria-expanded="false" aria-controls="hm-sug"><div class="hm-sug" id="hm-sug" role="listbox" hidden></div></div><button class="btn sm" id="hm-loc" type="button">◎ Mein Standort</button></div>
   <div class="hm-map" id="hm-map"><div class="hm-busy">Berechne Karte …</div></div>
-  <div class="hm-ctl hm-lay"><span class="chip" data-b="osm">Karte</span><span class="chip" data-b="sat">Satellit</span><i class="sep"></i><span class="chip" id="hm-trees">Baumarten (10 m)</span><label class="hm-op" title="Deckkraft der farbigen Bewertung">Deckkraft <input type="range" id="hm-op" min="0" max="100" step="5" aria-label="Deckkraft der Bewertung"></label></div>
+  <div class="hm-ctl hm-lay"><span class="chip" data-b="osm">Karte</span><span class="chip" data-b="sat">Satellit</span><i class="sep"></i><span class="chip" id="hm-trees">Baumarten (10 m)</span><span class="chip" id="hm-ph" role="button" aria-pressed="false" title="Boden-pH statt Bewertung zeigen" hidden>Boden-pH</span><label class="hm-op" title="Deckkraft der farbigen Bewertung">Deckkraft <input type="range" id="hm-op" min="0" max="100" step="5" aria-label="Deckkraft der Bewertung"></label></div>
   <div class="hm-tleg" id="hm-tleg" hidden><button type="button" class="hm-tq" data-tq="all">Alle</button><button type="button" class="hm-tq" data-tq="none">Keine</button>${TKEYS.map(k=>`<button type="button" class="hm-tk" data-k="${k}" aria-pressed="true"><i style="background:${TCOL[k]}"></i>${TREEDE[k]}</button>`).join('')}<small>Antippen blendet eine Baumart ein oder aus. Die farbige Bewertung gilt dann nur für Bestände der gewählten Baumarten.</small></div>
   <div class="hm-leg hm-leg-s"><span>schlecht</span><i></i><span>sehr gut</span></div><div class="hm-leg hm-leg-p" hidden><span>sauer</span><i class="ph"></i><span>basisch</span></div><div class="hm-leg hm-leg-p hm-ticks" hidden><span>sauer</span><b><em>pH 4</em><em>5</em><em>6</em><em>7</em><em>8</em><em>9</em></b><span>basisch</span></div>
   <p class="small mut" id="hm-note" style="margin:0 2px 8px"></p>
@@ -348,7 +350,7 @@ async function view(root,id){
   const m=DATA.d.meta;stand.textContent=(DATA.offline?'Ohne Netz – zuletzt geladener Stand. ':'')+`Stand ${dDE(m.date)} · Niederschlag bis ${dDE(m.pr_last)}`+(m.sm_date?` · Bodenfeuchte vom ${dDE(m.sm_date)}`:' · ohne Bodenfeuchte')+(m.tas_last?'':' · ohne Temperatur');
   const sel=root.querySelector('#hm-mode'),q=root.querySelector('#hm-q');
   const sync=()=>{const o=sel.querySelector('[value=art]');if(STATE.mode==='art'){const s=SP().find(x=>x.id===STATE.id);o.hidden=false;o.textContent=s?s.de:'Einzelne Art';q.value=s?s.de:''}else{o.hidden=true}sel.value=STATE.mode};sync();
-  sel.querySelector('[value=ph]').hidden=!DATA.s;   // pH-Karte nur mit Standortdaten
+  root.querySelector('#hm-ph').hidden=!DATA.s;   // pH-Karte nur mit Standortdaten
   MAP=L.map(root.querySelector('#hm-map'),{minZoom:5,maxZoom:17,maxBounds:[[45.5,2],[56.8,19]],attributionControl:true}).setView(POS?POS.c:[51.2,10.4],POS?POS.z:6);
   MAP.on('moveend',()=>{POS={c:MAP.getCenter(),z:MAP.getZoom()}});
   MAP.attributionControl.setPrefix(false);
@@ -368,13 +370,14 @@ async function view(root,id){
   lay();
   root.querySelectorAll('.hm-lay [data-b]').forEach(c=>c.addEventListener('click',()=>{OPT.base=c.dataset.b;saveOpt();lay()}));
   root.querySelector('#hm-trees').addEventListener('click',()=>{OPT.trees=!OPT.trees;if(OPT.trees){if(OPT.op>35){OPT.opPrev=OPT.op;OPT.op=35}}else if(OPT.opPrev){OPT.op=OPT.opPrev;delete OPT.opPrev}saveOpt();lay();if(sFilter())reUpdate(root)});
+  root.querySelector('#hm-ph').addEventListener('click',()=>{PH=!PH;update(root)});
   root.querySelector('#hm-op').addEventListener('input',e=>{OPT.op=+e.target.value;delete OPT.opPrev;if(OVER)OVER.setOpacity(OPT.op/100)});
   root.querySelector('#hm-op').addEventListener('change',saveOpt);
   root.querySelector('#hm-tleg').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;let s=tSel();
     if(b.dataset.tq==='all')s=TKEYS.slice();else if(b.dataset.tq==='none')s=[];else if(b.dataset.k){const k=b.dataset.k;s=s.includes(k)?s.filter(x=>x!==k):s.concat(k)}else return;
     OPT.tsel=s.length===TKEYS.length?null:TKEYS.filter(k=>s.includes(k));saveOpt();tFilter();lay();tRepaint(trees);if(sFilter())reUpdate(root)});
   MAP.on('click',e=>{const i=cellAt(e.latlng.lat,e.latlng.lng);if(i>=0)detail(root,i)});
-  sel.addEventListener('change',()=>{if(sel.value!=='art'){STATE={mode:sel.value,id:null};q.value='';if(location.hash.startsWith('#karte-'))history.replaceState(null,'','#karte');sync();update(root)}});
+  sel.addEventListener('change',()=>{if(sel.value!=='art'){STATE={mode:sel.value,id:null};PH=false;q.value='';if(location.hash.startsWith('#karte-'))history.replaceState(null,'','#karte');sync();update(root)}});
   /* Artsuche mit Vorschlagsliste direkt unter dem Feld */
   const sug=root.querySelector('#hm-sug');let hits=[],act=-1;
   const nrm=t=>String(t||'').toLowerCase().replace(/ä/g,'a').replace(/ö/g,'o').replace(/ü/g,'u').replace(/ß/g,'ss');
@@ -388,7 +391,7 @@ async function view(root,id){
     sug.innerHTML=hits.length?hits.map((s,i)=>`<div role="option" data-i="${i}">${esc(s.de)}${s._hit?` <small class="mut">(${esc(s._hit)})</small>`:''}<i>${esc(s.sci)}</i></div>`).join(''):'<p>Keine Art gefunden.</p>';
     sug.hidden=false;q.setAttribute('aria-expanded','true')};
   const mark=()=>{[...sug.children].forEach((d,i)=>d.classList.toggle('act',i===act));const d=sug.children[act];if(d&&d.scrollIntoView)d.scrollIntoView({block:'nearest'})};
-  const choose=s=>{close();q.blur();if(!s)return;STATE={mode:'art',id:s.id};history.replaceState(null,'','#karte-'+s.id);sync();update(root)};
+  const choose=s=>{close();q.blur();if(!s)return;STATE={mode:'art',id:s.id};PH=false;history.replaceState(null,'','#karte-'+s.id);sync();update(root)};
   q.addEventListener('input',show);q.addEventListener('focus',()=>{if(q.value.trim()){q.select();show()}});
   q.addEventListener('keydown',e=>{if(e.key==='Escape'){close();return}if(sug.hidden||!hits.length)return;
     if(e.key==='ArrowDown'){e.preventDefault();act=(act+1)%hits.length;mark()}else if(e.key==='ArrowUp'){e.preventDefault();act=(act-1+hits.length)%hits.length;mark()}

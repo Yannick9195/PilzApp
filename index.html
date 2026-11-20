@@ -50,7 +50,7 @@ details.fg{border-bottom:1px solid var(--line);padding:8px 0}details.fg summary{
 .lbc{padding:10px 16px calc(14px + env(safe-area-inset-bottom));font-size:.88rem}.lbcap{margin:0 0 6px;font-weight:600;line-height:1.35}.lbcr{margin:0;opacity:.75;font-size:.72rem}.lbcr a{color:#fff;text-decoration:underline}body.lbopen{overflow:hidden}
 .credit{position:absolute;right:8px;bottom:8px;font-size:.66rem;background:rgba(0,0,0,.5);color:#fff;padding:2px 7px;border-radius:8px;max-width:80%}.credit a{text-decoration:underline}
 .pnav{position:absolute;top:50%;transform:translateY(-50%);background:rgba(0,0,0,.45);color:#fff;border:0;border-radius:50%;width:34px;height:34px}.pnav.l{left:8px}.pnav.r{right:8px}
-.head{margin:14px 2px 4px}.head .sci{font-size:1rem}.alt{font-size:.85rem;color:var(--mut);margin-top:2px}
+.head{margin:14px 2px 4px}.head .sci{font-size:1rem}.alt{font-size:.85rem;color:var(--mut);margin-top:2px}.althit{font-size:.76rem;color:var(--mut);margin-top:1px;line-height:1.25}button.lnk{background:none;border:0;padding:0;color:var(--moss2);font:inherit;text-decoration:underline;cursor:pointer}
 .facts{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px;margin:12px 0}.fact{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:9px 11px}.fact .k{font-size:.72rem;text-transform:uppercase;letter-spacing:.05em;color:var(--mut);font-weight:700}.fact .v{font-weight:600;font-size:.9rem}
 .sec{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:14px 16px;margin:10px 0}.sec p{margin:.2em 0}.sec dl{margin:0;display:grid;grid-template-columns:110px 1fr;gap:6px 12px}.sec dt{font-weight:650;color:var(--mut);font-size:.88rem}.sec dd{margin:0}
 @media(max-width:520px){.sec dl{grid-template-columns:1fr}.sec dt{margin-top:6px}}
@@ -87,7 +87,7 @@ a.synl{text-decoration:underline dotted;text-underline-offset:3px;cursor:pointer
 .panel.help{border-left:5px solid #8b1a2b}
 .subl{font-size:.78rem;font-weight:700;color:var(--mut);margin:8px 0 4px}.qsub+.qsub{margin-top:6px}
 .tastew{margin-top:6px;padding:7px 10px;border-radius:10px;background:#f8d8d2;color:#7d2216;font-weight:700;font-size:.84rem;line-height:1.35}.dark .tastew{background:#4f231c;color:#ffc2b8}
-.chip.same{opacity:.5;background:transparent}.tbl tr.samerow td{opacity:.75}.tbl td.sepcell{position:static!important;background:var(--bg)!important;color:var(--mut);text-transform:none;font-size:.9rem;font-weight:700;max-width:none}
+.tbl.du table{width:100%;table-layout:fixed}.tbl.du td{min-width:0;max-width:none;padding:8px 6px}.tbl.du td:first-child{width:27%;min-width:0;max-width:none;font-size:.72rem}.tbl.du .chip{padding:5px 8px;font-size:.8rem;max-width:100%;flex-wrap:wrap;row-gap:0}.tbl tr.keyrow td{background:#fdf6df}.tbl tr.keyrow td:first-child{background:#f6e7b4;color:#5a4100}.dark .tbl tr.keyrow td{background:#2b2612}.dark .tbl tr.keyrow td:first-child{background:#3d3214;color:#f3dfa6}.chip.same{opacity:.5;background:transparent}.tbl tr.samerow td{opacity:.75}.tbl td.sepcell{position:static!important;background:var(--bg)!important;color:var(--mut);text-transform:none;font-size:.9rem;font-weight:700;max-width:none}.tbl.du td.sepcell{width:auto;font-size:.8rem;padding:12px 6px 4px}
 .samel{display:grid;grid-template-columns:minmax(140px,38%) 1fr;gap:10px;padding:6px 0;border-bottom:1px dashed var(--line);font-size:.88rem}details.sec summary{cursor:pointer}
 .jn{position:sticky;top:var(--hh,56px);z-index:15;display:flex;gap:6px;overflow-x:auto;margin:10px -14px 0;padding:8px 14px;background:var(--bg);border-bottom:1px solid var(--line);scrollbar-width:none;-webkit-overflow-scrolling:touch}
 .jn::-webkit-scrollbar{display:none}
@@ -147,6 +147,7 @@ a.synl{text-decoration:underline dotted;text-underline-offset:3px;cursor:pointer
 <div class="toast" id="toast"></div>
 <script src="data/vocab.js"></script>
 <script src="data/species.js"></script>
+<script src="data/duel.js"></script>
 <script src="data/genera.js"></script>
 <script src="data/questions.js"></script>
 <script src="data/photos.js"></script>
@@ -199,6 +200,9 @@ const genLabel=n=>esc(n)+(gdeOf(n)?' ('+esc(gdeOf(n))+')':'');
 const raw=(s,c)=>(s.tr&&s.tr[c])||[];const req=(s,c)=>raw(s,c).filter(v=>v[0]!=='~');const opt=(s,c)=>raw(s,c).filter(v=>v[0]==='~').map(v=>v.slice(1));const allv=(s,c)=>raw(s,c).map(v=>v.replace(/^~/,''));
 const swOf=s=>{const r=req(s,'sw');const order=['t','g','un','k','eg','e'];return order.find(x=>r.includes(x))||r[0]||'k'};
 const PAIRS=(()=>{const m={};SP.forEach(a=>(a.vw||[]).forEach(v=>{if(v.id&&BY[v.id]&&v.id!==a.id){const k=[a.id,v.id].sort().join('|');(m[k]=m[k]||{a:k.split('|')[0],b:k.split('|')[1],h:[]}).h.push({from:a.id,to:v.id,t:v.t})}}));return m})();
+const altList=a=>a.length<=8?a.map(esc).join(', '):a.slice(0,8).map(esc).join(', ')+`<span class="altrest" hidden>, ${a.slice(8).map(esc).join(', ')}</span> <button class="lnk" data-act="altMore">+${a.length-8} weitere</button>`;
+const altHit=s=>{if(!F.q)return '';const t=F.q.split(' '),ok=n=>{const x=norm(n),y=x.replace(/ /g,'');return t.every(w=>x.includes(w)||y.includes(w))};if(ok(s.de)||ok(s.sci)||ok(s.gen))return '';const a=(s.alt||[]).find(ok);return a?`<div class="althit">auch: ${esc(a)}</div>`:''};
+const kennOf=x=>{const to=BY[x.to],m=String(x.t).match(/^([^:]{1,60}):\s*(.+)$/),k=n=>norm(n).replace(/ /g,'');return m&&[to.de,...(to.alt||[])].some(n=>k(n)===k(m[1]))?m[2]:x.t};
 /* ---------- Speicher ---------- */
 const KEY='pilzapp-v1';
 const newProfile=n=>({name:n,created:Date.now(),sp:{},q:{},du:{},notes:{},fav:{},cmp:[],days:{},settings:{newPerDay:10,session:20,cats:null,theme:'auto',spDeck:'1',qTopic:'all',lastBackup:0}});
@@ -288,8 +292,9 @@ function renderList(){LIST=sorted(SP.filter(s=>matches(s)));shown=0;$('#list').i
  $('#activeF').innerHTML=af.join('')+(af.length?'<span class="chip" data-act="clearF">Alle löschen</span>':'');more();
  if(obs)obs.disconnect();obs=new IntersectionObserver(e=>{if(e[0].isIntersecting)more()},{rootMargin:'600px'});obs.observe($('#more'));
  if(!LIST.length)$('#list').innerHTML='<div class="empty" style="grid-column:1/-1">Keine Art passt zu diesen Filtern.</div>'}
-function more(){const L=$('#list');if(!L||shown>=LIST.length)return;const n=Math.min(LIST.length,shown+48);let h='';for(let i=shown;i<n;i++){const s=LIST[i];h+=`<a class="card" href="#art-${s.id}"><div class="thumb">${thumb(s)}${dots(s.id)}</div><div class="cb"><div class="de">${esc(s.de)}</div><div class="sci">${esc(s.sci)}</div><div class="badges">${lvBadge(s)}${swBadge(s)}${protBadge(s)}</div></div></a>`}L.insertAdjacentHTML('beforeend',h);shown=n}
+function more(){const L=$('#list');if(!L||shown>=LIST.length)return;const n=Math.min(LIST.length,shown+48);let h='';for(let i=shown;i<n;i++){const s=LIST[i];h+=`<a class="card" href="#art-${s.id}"><div class="thumb">${thumb(s)}${dots(s.id)}</div><div class="cb"><div class="de">${esc(s.de)}</div><div class="sci">${esc(s.sci)}</div>${altHit(s)}<div class="badges">${lvBadge(s)}${swBadge(s)}${protBadge(s)}</div></div></a>`}L.insertAdjacentHTML('beforeend',h);shown=n}
 const LSL={neu:'noch nicht gelernt',lern:'in Lernphase',gem:'gemeistert',due:'heute fällig',fav:'Favoriten'};
+ACT.altMore=a=>{const r=a.parentNode.querySelector('.altrest');if(r)r.hidden=false;a.remove()};
 ACT.rmF=a=>{const c=a.dataset.c;if(c==='gen')F.gen='';else if(c==='ls')F.ls='';else F.f[c].delete(a.dataset.v);vArten()};
 ACT.clearF=()=>{F.f={};F.gen='';F.ls='';vArten()};
 ACT.filters=()=>openFilters();
@@ -382,7 +387,7 @@ function vArt(id){const s=BY[id];if(SPY){SPY.disconnect();SPY=null}if(!s){view.i
  const has=key=>C[key]&&C[key][1].trim();
  const nav=[...SECT.flatMap(x=>x[1]).filter(has),'note'].map(key=>`<button class="a-${key} ${key==='wert'?swc:''}" data-act="jump" data-t="${key}"><i></i>${esc(NAVL[key]||'Notizen')}</button>`).join('');
  const body=SECT.map(([t,keys])=>{const cs=keys.filter(has);return cs.length?`<h2 class="shd">${esc(t)}</h2><div class="tgrid">${cs.map(key=>tcard(key,esc(C[key][0]),C[key][1],key==='wert'?swc:'')).join('')}</div>`:''}).join('');
- view.innerHTML=`${hero}<div class="head"><div class="badges">${lvBadge(s)}${swBadge(s)}${protBadge(s)}${vtBadges(s)}${c&&c.b?`<span class="b">${c.b>=6?'gemeistert':'Fach '+c.b}</span>`:''}</div><h1>${esc(s.de)}</h1><div class="sci">${esc(s.sci)}${s.au?` <span class="mut" style="font-style:normal">${esc(s.au)}</span>`:''}</div>${(s.alt||[]).length||(s.syn||[]).length?`<div class="alt">${(s.alt||[]).length?'auch: '+s.alt.map(esc).join(', '):''}${(s.syn||[]).length?((s.alt||[]).length?' · ':'')+'Syn.: '+s.syn.map(x=>`<i>${esc(x)}</i>`).join(', '):''}</div>`:''}</div>
+ view.innerHTML=`${hero}<div class="head"><div class="badges">${lvBadge(s)}${swBadge(s)}${protBadge(s)}${vtBadges(s)}${c&&c.b?`<span class="b">${c.b>=6?'gemeistert':'Fach '+c.b}</span>`:''}</div><h1>${esc(s.de)}</h1><div class="sci">${esc(s.sci)}${s.au?` <span class="mut" style="font-style:normal">${esc(s.au)}</span>`:''}</div>${(s.alt||[]).length||(s.syn||[]).length?`<div class="alt">${(s.alt||[]).length?'auch: '+altList(s.alt):''}${(s.syn||[]).length?((s.alt||[]).length?' · ':'')+'Syn.: '+s.syn.map(x=>`<i>${esc(x)}</i>`).join(', '):''}</div>`:''}</div>
  <div class="row" style="margin:10px 0"><button class="btn sm" data-act="fav" data-id="${id}">${fav?'★ Favorit':'☆ Favorit'}</button><button class="btn sm" data-act="cmpWith" data-id="${id}">⇄ Vergleichen${vwIds.length?' mit Doppelgängern':''}</button><button class="btn sm pri" data-act="learnOne" data-id="${id}">▶ Abfragen</button>${window.HEAT?`<a class="btn sm" href="#karte-${id}">◎ Wo wächst er gerade?</a>`:''}</div>
  ${!raw(s,'sw').length?`<div class="warnbox g">Für diese Art ist der ausführliche Steckbrief noch in Arbeit.</div>`:''}${k==='t'?`<div class="warnbox t">☠ <div>Tödlich giftig${req(s,'sy').filter(x=>x!=='kein').length?' – '+req(s,'sy').map(x=>esc(lab('sy',x))).join(', '):''}</div></div>`:k==='g'?`<div class="warnbox g">⚠ <div>Giftig – nicht essen.</div></div>`:''}
  ${s.tx.merke?`<div class="kenn"><b>Auf einen Blick – die wichtigsten Erkennungsmerkmale:</b><br>${esc(s.tx.merke)}</div>`:''}
@@ -468,11 +473,12 @@ function vVergleich(){const ids=(P().cmp||[]).filter(i=>BY[i]);const S=ids.map(i
  const kenn=row('Wichtigste Merkmale (Kurzfassung)',s=>esc(s.tx.merke||'–'))+row('Saison',s=>monthBar(s,true)+`<div class="tiny mut" style="margin-top:3px">${esc(monSum(s))}</div>`);
  if(multi){
   h+=`<div class="row" style="margin:14px 0 4px"><h2 class="sp" style="margin:0">Unterscheidende Merkmale <span class="mut small">(${diffC.length})</span></h2><div class="seg"><button class="${CMPMODE==='diff'?'on':''}" data-act="cmpMode" data-m="diff">Nur Unterschiede</button><button class="${CMPMODE==='all'?'on':''}" data-act="cmpMode" data-m="all">Alles</button></div></div>`;
-  let rows=head+kenn+diffC.map(u=>row(esc(u.l),s=>ucell(s,u))).join('');
+  const sep=x=>`<tr><td colspan="${S.length+1}" class="sepcell">${x}</td></tr>`,D2=S.length===2?duelRows(S[0],S[1]):null;
+  const wk=s=>S.filter(o=>o!==s).flatMap(o=>{const pre=S.length>2?`<span class="mut small">ggü. ${esc(o.de)}:</span> `:'',d=duelRows(s,o);if(d)return [pre+d.map(r=>`${esc(r[0])}: <b>${esc(r[1])}</b>`).join(' · ')];const p=PAIRS[[s.id,o.id].sort().join('|')];return p?p.h.filter(x=>x.to===s.id).map(x=>pre+`<b>${esc(kennOf(x))}</b>`):[]}).join('<br>');
+  const wkRow=D2?sep('Wichtigste Unterschiede')+D2.map(r=>`<tr class="keyrow"><td>${esc(r[0])}</td><td><b>${esc(r[1])}</b></td><td><b>${esc(r[2])}</b></td></tr>`).join('')+sep('Alle Merkmale'):S.some(s=>wk(s))?row('Woran erkennbar',s=>wk(s),'keyrow'):'';
+  let rows=head+wkRow+kenn+diffC.map(u=>row(esc(u.l),s=>ucell(s,u))).join('');
   if(CMPMODE==='all'&&sameC.length)rows+=`<tr><td colspan="${S.length+1}" class="sepcell">Bei allen gleich (${sameC.length})</td></tr>`+sameC.map(u=>row(esc(u.l),s=>ucell(s,u),'samerow')).join('');
   h+=`<div class="tbl"><table>${rows}</table></div>`;
-  const hints=[];for(let i=0;i<S.length;i++)for(let j=i+1;j<S.length;j++){const p=PAIRS[[S[i].id,S[j].id].sort().join('|')];if(p)p.h.forEach(x=>hints.push(`<p><b>${esc(BY[x.from].de)} ↔ ${esc(BY[x.to].de)}:</b> ${esc(x.t)}</p>`))}
-  if(hints.length)h+=`<div class="sec"><h3>So unterscheidest du sie</h3>${hints.join('')}</div>`;
   if(CMPMODE==='diff'&&sameC.length)h+=`<details class="sec"><summary><b>Gemeinsame Merkmale (${sameC.length})</b> <span class="mut small">– bei allen gleich, helfen bei der Unterscheidung nicht</span></summary><div style="margin-top:8px">${sameC.map(u=>`<div class="samel"><span class="mut">${esc(u.l)}</span><span>${u.ps.map(c=>(u.parts.length>1?esc(u.sub[c])+': ':'')+sets[c][0].map(v=>esc(lab(c,v))).join(', ')).join(' · ')}</span></div>`).join('')}</div></details>`;
  }else h+=`<div class="tbl"><table>${head+kenn+usedU.map(u=>row(esc(u.l),s=>ucell(s,u))).join('')}</table></div>`;
  h+=`<details class="sec" ${CMPMODE==='all'||!multi?'open':''}><summary><b>Beschreibungen im Vergleich</b></summary><div class="tbl"><table>${TXT.map(([k,l])=>row(l,s=>esc(s.tx[k]||'–')+(k==='geruch'?TW(s):''))).join('')}${row('Speisewert',s=>esc(s.tx.speise||'–'))}${row('Giftigkeit',s=>esc(s.tx.gift||'–'))}</table></div></details>`;
@@ -554,19 +560,41 @@ function vFragen(){if(!S||S.kind!=='q'){location.hash='lernen';return}if(S.i>=S.
 ACT.qshow=()=>{$('#ans').hidden=false;$('#qa').innerHTML=`<button class="btn big sp bad" data-act="qg" data-r="bad">✗ Nicht gewusst</button><button class="btn big sp" data-act="qg" data-r="mid">≈ Teilweise</button><button class="btn big sp pri" data-act="qg" data-r="ok">✓ Gewusst</button>`};
 ACT.qg=a=>{const r=a.dataset.r;const id=S.q[S.i];grade(S.kind==='q'?'q':'du',id,r);S.done++;if(r==='ok')S.ok++;if(r==='bad'&&!S.re.has(id)){S.re.add(id);S.q.push(id)}S.i++;S.kind==='q'?vFragen():vDuell()};
 /* Duell */
+const DUX=['sw','vt','sy','ss'];
+/* kuratierte Gegenüberstellung je Paar (data/duel.js): [[Merkmal, Wert a, Wert b]], ausgerichtet auf (a,b) */
+const duelRows=(a,b)=>{const k=[a.id,b.id].sort().join('|'),D=(window.DUEL||{})[k];if(!D||!D.length)return null;const f=k.split('|')[0]===a.id;return D.map(r=>[r[0],f?r[1]:r[2],f?r[2]:r[1]])};
+function duelTable(A,B,p){const S=[A,B];
+ const U=UNITS.map(u=>({...u,ps:u.parts.filter(c=>!DUX.includes(c)&&S.every(s=>raw(s,c).length))})).filter(u=>u.ps.length);
+ const sets={};U.forEach(u=>u.ps.forEach(c=>sets[c]=S.map(s=>allv(s,c))));
+ const same=c=>sets[c][0].length===sets[c][1].length&&sets[c][0].every(v=>sets[c][1].includes(v));
+ const disj=c=>!sets[c][0].some(v=>sets[c][1].includes(v));
+ const chip=(c,v,cls)=>`<span class="chip ${cls}" style="margin:2px">${V.cats[c].color?`<i class="sw" style="background:${V.colors[v.replace(/^~/,'')]}"></i>`:''}${esc(lab(c,v.replace(/^~/,'')))}${v[0]==='~'?' <span class="n">(möglich)</span>':''}</span>`;
+ const cell=(c,i)=>{const o=sets[c][1-i];return raw(S[i],c).slice().sort((a,b)=>o.includes(a.replace(/^~/,''))-o.includes(b.replace(/^~/,''))).map(v=>chip(c,v,o.includes(v.replace(/^~/,''))?'same':'diff')).join('')};
+ const ucell=(u,i)=>u.parts.length>1?u.ps.map(c=>`<div class="subl">${esc(u.sub[c])}</div>${cell(c,i)}`).join(''):cell(u.ps[0],i);
+ const row=(l,f,cls='')=>`<tr class="${cls}"><td>${l}</td>${S.map((s,i)=>`<td>${f(i)}</td>`).join('')}</tr>`;
+ const diffU=U.filter(u=>!u.ps.every(same)),sameU=U.filter(u=>u.ps.every(same));
+ const keyU=diffU.filter(u=>u.ps.some(disj)),restU=diffU.filter(u=>!u.ps.some(disj));
+ const kenn=S.map(s=>p.h.filter(x=>x.to===s.id).map(x=>esc(kennOf(x))).join('<br>'));
+ const D=duelRows(A,B),sep=x=>`<tr><td colspan="3" class="sepcell">${x}</td></tr>`;
+ let rows=row('',i=>`<b>${esc(S[i].de)}</b>`)+row('Bild',i=>`<div class="thumb" style="border-radius:12px">${thumb(S[i])}</div>`);
+ if(D)rows+=sep('Wichtigste Unterschiede')+D.map(r=>row(esc(r[0]),i=>`<b>${esc(r[i+1])}</b>`,'keyrow')).join('');
+ else if(kenn.some(Boolean))rows+=row('Woran erkennbar',i=>kenn[i]?`<b>${kenn[i]}</b>`:'','keyrow');
+ if(keyU.length||restU.length)rows+=(D?sep('Alle Merkmale im Vergleich'):'')+keyU.map(u=>row('★ '+esc(u.l),i=>ucell(u,i),D?'':'keyrow')).join('')+restU.map(u=>row(esc(u.l),i=>ucell(u,i))).join('');
+ return `<div class="tbl du" style="margin-top:12px"><table>${rows}</table></div><p class="tiny mut">★ = keine Überschneidung · <span class="chip diff" style="padding:1px 8px">gelb</span> = nur bei dieser Art · <span class="chip same" style="padding:1px 8px">blass</span> = bei beiden</p>`
+  +(sameU.length?`<details class="sec"><summary><b>Bei beiden gleich (${sameU.length})</b></summary><div style="margin-top:8px">${sameU.map(u=>`<div class="samel"><span class="mut">${esc(u.l)}</span><span>${u.ps.map(c=>(u.parts.length>1?esc(u.sub[c])+': ':'')+sets[c][0].map(v=>esc(lab(c,v))).join(', ')).join(' · ')}</span></div>`).join('')}</div></details>`:'')}
 ACT.startDu=()=>{const ids=Object.keys(PAIRS);let q=queue('du',ids);if(!q.length)q=shuffle(ids.slice()).slice(0,10);S={kind:'du',q,i:0,ok:0,done:0,re:new Set()};location.hash==='#duell'?vDuell():location.hash='duell'};
 function vDuell(){if(!S||S.kind!=='du'){location.hash='lernen';return}if(S.i>=S.q.length){view.innerHTML=`<div class="qcard c"><div style="font-size:3rem">⚔️</div><h2>Duell beendet</h2><p>${S.ok} von ${S.done} sicher unterschieden.</p><div class="row" style="justify-content:center"><a class="btn" href="#lernen">Zur Übersicht</a><button class="btn pri" data-act="startDu">Nochmal</button></div></div>`;return}
- const p=PAIRS[S.q[S.i]];const A=BY[p.a],B=BY[p.b];const diffs=CATS.filter(c=>c!=='sy'&&c!=='ss').map(c=>{const a=allv(A,c),b=allv(B,c);if(!a.length||!b.length)return null;const oa=a.filter(x=>!b.includes(x)),ob=b.filter(x=>!a.includes(x));if(!oa.length&&!ob.length)return null;return `<tr><td>${esc(catLabel(c))}</td><td>${oa.map(x=>esc(lab(c,x))).join(', ')||'–'}</td><td>${ob.map(x=>esc(lab(c,x))).join(', ')||'–'}</td></tr>`}).filter(Boolean).join('');
+ const p=PAIRS[S.q[S.i]];const A=BY[p.a],B=BY[p.b];
  view.innerHTML=`<div class="row small mut"><span>Doppelgänger-Duell</span><span class="sp"></span><span>${S.i+1} / ${S.q.length}</span><a href="#lernen">Beenden</a></div><div class="prog"><i style="width:${S.i/S.q.length*100}%"></i></div>
- <div class="qcard"><div class="small mut">Woran unterscheidest du …</div><div class="row" style="align-items:stretch;margin-top:8px">${[A,B].map(s=>`<div class="sp" style="min-width:140px"><div class="thumb" style="border-radius:14px">${thumb(s)}</div><div class="de" style="margin-top:6px">${esc(s.de)}</div><div class="sci">${esc(s.sci)}</div><div class="badges">${swBadge(s)}</div></div>`).join('')}</div>
- <div id="ans" hidden>${p.h.map(x=>`<div class="answer"><b>${esc(BY[x.from].de)} ↔ ${esc(BY[x.to].de)}:</b> ${esc(x.t)}</div>`).join('')}${diffs?`<div class="tbl"><table><tr><td>Merkmal</td><td><b>nur ${esc(A.de)}</b></td><td><b>nur ${esc(B.de)}</b></td></tr>${diffs}</table></div>`:''}</div></div>
+ <div class="qcard"><div class="small mut">Woran unterscheidest du …</div><div class="row" style="align-items:stretch;margin-top:8px">${[A,B].map(s=>`<div class="sp" style="min-width:140px"><div class="de">${esc(s.de)}</div><div class="sci">${esc(s.sci)}</div><div class="badges">${swBadge(s)}</div></div>`).join('')}</div>
+ <div id="ans" hidden>${duelTable(A,B,p)}</div></div>
  <div class="sticky-act" id="qa"><button class="btn pri big sp" data-act="qshow">Unterschiede zeigen</button></div>`}
 /* Wer bin ich */
-ACT.startRaten=()=>{const ids=deckIds(P().settings.spDeck).filter(i=>BY[i].tx.merke);if(ids.length<4)return toast('Zu wenige Arten in der Auswahl');S={kind:'raten',q:shuffle(ids.slice()).slice(0,10),i:0,ok:0,done:0};location.hash==='#raten'?vRaten():location.hash='raten'};
+ACT.startRaten=()=>{const ids=deckIds(P().settings.spDeck).filter(i=>BY[i].tx.wbi||BY[i].tx.merke);if(ids.length<4)return toast('Zu wenige Arten in der Auswahl');S={kind:'raten',q:shuffle(ids.slice()).slice(0,10),i:0,ok:0,done:0};location.hash==='#raten'?vRaten():location.hash='raten'};
 function vRaten(){if(!S||S.kind!=='raten'){location.hash='lernen';return}if(S.i>=S.q.length){view.innerHTML=`<div class="qcard c"><div style="font-size:3rem">🔎</div><h2>${S.ok} von ${S.done} erkannt</h2><div class="row" style="justify-content:center"><a class="btn" href="#lernen">Zur Übersicht</a><button class="btn pri" data-act="startRaten">Nochmal</button></div></div>`;return}
  const s=BY[S.q[S.i]];const pool=[...new Set([...(s.vw||[]).filter(v=>v.id&&BY[v.id]).map(v=>v.id),...shuffle((GSP[s.gen]||[]).filter(i=>i!==s.id)),...shuffle(SP.filter(x=>allv(x,'fk')[0]===allv(s,'fk')[0]&&allv(x,'hy')[0]===allv(s,'hy')[0]).map(x=>x.id))])].filter(i=>i!==s.id).slice(0,3);
  while(pool.length<3){const r=SP[Math.random()*SP.length|0].id;if(r!==s.id&&!pool.includes(r))pool.push(r)}
- const words=[s.de,...(s.alt||[]),s.sci,s.gen,...s.de.split(/[\s-]+/).filter(w=>w.length>4)];let txt=[s.tx.merke,s.tx.hut,s.tx.fs,s.tx.stiel,s.tx.vork].filter(Boolean).join(' ');words.forEach(w=>{txt=txt.split(w).join('…')});
+ const words=[s.de,...(s.alt||[]),s.sci,s.gen,...(s.tx.wbi?[]:s.de.split(/[\s-]+/).filter(w=>w.length>4))];let txt=s.tx.wbi||[s.tx.merke,s.tx.hut,s.tx.fs,s.tx.stiel,s.tx.vork].filter(Boolean).join(' ');const L='A-Za-zÄÖÜäöüßéè';words.filter(w=>w&&w.length>2).sort((a,b)=>b.length-a.length).forEach(w=>{txt=txt.replace(new RegExp('(^|[^'+L+'])'+w.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+'(?=$|[^'+L+'])','g'),'$1…')});
  S.opts=shuffle([s.id,...pool]);S.ans=s.id;S.answered=false;
  view.innerHTML=`<div class="row small mut"><span>Wer bin ich?</span><span class="sp"></span><span>${S.i+1} / ${S.q.length}</span><a href="#lernen">Beenden</a></div><div class="prog"><i style="width:${S.i/S.q.length*100}%"></i></div>
  <div class="qcard"><p>${esc(txt)}</p>${S.opts.map(i=>`<button class="opt" data-act="rat" data-id="${i}">${esc(BY[i].de)} <span class="sci">${esc(BY[i].sci)}</span></button>`).join('')}</div><div class="sticky-act" id="qa"></div>`}

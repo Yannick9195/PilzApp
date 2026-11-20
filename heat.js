@@ -379,13 +379,13 @@ async function view(root,id){
   const sug=root.querySelector('#hm-sug');let hits=[],act=-1;
   const nrm=t=>String(t||'').toLowerCase().replace(/ä/g,'a').replace(/ö/g,'o').replace(/ü/g,'u').replace(/ß/g,'ss');
   const find=v=>{const n=nrm(v.trim());if(!n)return [];const r=[];
-    for(const s of SP()){const names=[s.de,s.sci,...(s.alt||[]),...(s.syn||[])].map(nrm);let b=9;
-      names.forEach((t,k)=>{const i=t.indexOf(n);if(i<0)return;const w=i===0?0:/[\s\-]/.test(t[i-1])?1:2;if(w===2&&k>0)return;const sc=w+(k===0?0:k===1?.3:.6);if(sc<b)b=sc});
-      if(b<9)r.push([b,s])}
-    return r.sort((a,b)=>a[0]-b[0]||a[1].de.localeCompare(b[1].de,'de')).slice(0,8).map(x=>x[1])};
+    for(const s of SP()){const raw=[s.de,s.sci,...(s.alt||[]),...(s.syn||[])],names=raw.map(nrm);let b=9,bk=0;
+      names.forEach((t,k)=>{const i=t.indexOf(n);if(i<0)return;const w=i===0?0:/[\s\-]/.test(t[i-1])?1:2;if(w===2&&k>0)return;const sc=w+(k===0?0:k===1?.3:.6);if(sc<b){b=sc;bk=k}});
+      if(b<9)r.push([b,s,bk>1?raw[bk]:''])}
+    return r.sort((a,b)=>a[0]-b[0]||a[1].de.localeCompare(b[1].de,'de')).slice(0,8).map(x=>(x[1]._hit=x[2],x[1]))};
   const close=()=>{sug.hidden=true;q.setAttribute('aria-expanded','false');act=-1};
   const show=()=>{hits=find(q.value);act=-1;if(!q.value.trim()){close();return}
-    sug.innerHTML=hits.length?hits.map((s,i)=>`<div role="option" data-i="${i}">${esc(s.de)}<i>${esc(s.sci)}</i></div>`).join(''):'<p>Keine Art gefunden.</p>';
+    sug.innerHTML=hits.length?hits.map((s,i)=>`<div role="option" data-i="${i}">${esc(s.de)}${s._hit?` <small class="mut">(${esc(s._hit)})</small>`:''}<i>${esc(s.sci)}</i></div>`).join(''):'<p>Keine Art gefunden.</p>';
     sug.hidden=false;q.setAttribute('aria-expanded','true')};
   const mark=()=>{[...sug.children].forEach((d,i)=>d.classList.toggle('act',i===act));const d=sug.children[act];if(d&&d.scrollIntoView)d.scrollIntoView({block:'nearest'})};
   const choose=s=>{close();q.blur();if(!s)return;STATE={mode:'art',id:s.id};history.replaceState(null,'','#karte-'+s.id);sync();update(root)};

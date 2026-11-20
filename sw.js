@@ -1,9 +1,9 @@
-const C='pilzwissen-v17',D='pilzwissen-daten-1';   // D: letzter Datenstand der Pilzkarte (legt heat.js an)
+const C='pilzwissen-v18',D='pilzwissen-daten-1';   // D: letzter Datenstand der Pilzkarte (legt heat.js an)
 /* Baumarten-Kacheln des DLR (Karte von 2022, ändert sich nicht): einmal geladen bleiben sie auf dem Gerät –
    beim nächsten Mal sofort da, ohne erneuten Download. Eigener Speicher, der Versionswechsel überlebt; höchstens TMAX Kacheln. */
 const T='pilzwissen-baumarten-1',TMAX=1200;let tPut=0;
 const trimT=c=>c.keys().then(k=>Promise.all(k.slice(0,Math.max(0,k.length-TMAX)).map(r=>c.delete(r))));
-self.addEventListener('install',e=>{e.waitUntil(caches.open(C).then(c=>c.addAll(['./','./index.html','./data/vocab.js','./data/species.js','./data/genera.js','./data/questions.js','./data/photos.js','./data/syndromes.js','./heat.js','./lib/leaflet.js','./lib/leaflet.css','./icon.svg','./manifest.webmanifest'])).then(()=>self.skipWaiting()))});
+self.addEventListener('install',e=>{e.waitUntil(caches.open(C).then(c=>c.addAll(['./','./index.html','./data/vocab.js','./data/species.js','./data/duel.js','./data/genera.js','./data/questions.js','./data/photos.js','./data/syndromes.js','./heat.js','./lib/leaflet.js','./lib/leaflet.css','./icon.svg','./manifest.webmanifest'])).then(()=>self.skipWaiting()))});
 self.addEventListener('activate',e=>{e.waitUntil(caches.keys().then(k=>Promise.all(k.filter(x=>x!==C&&x!==T&&x!==D).map(x=>caches.delete(x)))).then(()=>self.clients.claim()))});
 self.addEventListener('fetch',e=>{const u=new URL(e.request.url);if(e.request.method!=='GET')return;
  if(u.origin===location.origin){

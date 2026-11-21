@@ -1,0 +1,11 @@
+Stichtag 2026-11-21 | Raster 648 x 880
+lade hyras_de/precipitation/pr_hyras_1_2026_v6-1_de.nc
+Niederschlag bis 2026-11-20 | Tage mit Gewicht: 17 | fehlend: []
+  wirksamer Niederschlag mm: Mittel 22.1, Max 122.3
+lade hyras_de/air_temperature_mean/tas_hyras_1_2026_v6-1_de.nc
+Temperatur bis 2026-11-20 | Mittel 15 Tage: 5.0 °C
+lade hyras_de/air_temperature_min/tasmin_hyras_1_2026_v6-1_de.nc
+Tiefstwerte 2026-08-01 bis 2026-11-20 | 112 Tage | Zellen mit Frost: 99 %, unter -5 °C: 2 %, unter -10 °C: 0 %
+lade soil_moisture/grass/2026/grids_germany_daily_soil_moisture_grass_2026_0-30_v1.nc
+Bodenfeuchte vom 2026-11-20 | Mittel 123 % nFK
+fertig: 658 KB
